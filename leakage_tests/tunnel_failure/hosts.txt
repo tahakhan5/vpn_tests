@@ -1,0 +1,8 @@
+google.com
+facebook.com
+#baidu.com - disabled because it was reliably failing *shrug*
+wikipedia.org
+yahoo.com
+reddit.com
+amazon.com
+twitter.com

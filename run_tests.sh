@@ -35,7 +35,6 @@ mkdir -p $RTC_LEAK_DIR
 TUNNEL_FAILURE_DIR=$RESULTS_DIR"tunnel_failure/"
 mkdir -p $TUNNEL_FAILURE_DIR
 
-
 V6LEAK_DIR=$RESULTS_DIR"ipv6_leak/"
 mkdir -p $V6LEAK_DIR
 
@@ -44,6 +43,9 @@ mkdir -p $DNS_MANIP_DIR
 
 NETALYZR_DIR=$RESULTS_DIR"netalyzr/"
 mkdir -p $NETALYZR_DIR
+
+DOM_COLLECTION_DIR=$RESULTS_DIR"dom_collection/"
+mkdir -p $DOM_COLLECTION_DIR
 
 #########################################################################################
 
@@ -164,7 +166,6 @@ echo "-------------------------------------------------------------------------"
 echo "02. IPV6 LEAK TEST"
 echo "-------------------------------------------------------------------------"
 
-
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -212,7 +213,7 @@ echo "-------------------------------------------------------------------------"
 DUMP_FILE=_netalyzr.pcap
 tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export NETALYZR_PID=$!
 echo "-------------------------------------------------------------------------"
-echo "01. RUNNING NETALYZR"
+echo "06. RUNNING NETALYZR"
 echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/netalyzr/
@@ -224,6 +225,30 @@ kill -s TERM $NETALYZR_PID
 sleep 0.5
 echo "-------------------------------------------------------------------------"
 echo "NETALYZR TEST COMPLETE"
+echo "-------------------------------------------------------------------------"
+################################################################################
+
+
+##############################################################################
+############      07. DOM COLLECTION FOR JS INTERCEPTION        ############## 
+##############################################################################
+
+# Run the test specific capture
+DUMP_FILE=_dom_collection.pcap
+tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export DOM_COLL_PID=$!
+echo "-------------------------------------------------------------------------"
+echo "07. RUNNING DOM COLLECTION FOR JS"
+echo "-------------------------------------------------------------------------"
+
+cd ./manipulation_tests/dom_collection/
+python dom_collection_js.py $DOM_COLLECTION_DIR | tee $DOM_COLLECTION_DIR"dom_collection_log"
+cd $DEFAULT_DIR
+
+# Kill the test specific capture
+kill -s TERM $DOM_COLL_PID
+sleep 0.5
+echo "-------------------------------------------------------------------------"
+echo "DOM COLLECTION FOR JS COMPLETE"
 echo "-------------------------------------------------------------------------"
 ################################################################################
 

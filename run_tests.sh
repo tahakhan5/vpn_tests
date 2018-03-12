@@ -47,6 +47,9 @@ mkdir -p $NETALYZR_DIR
 DOM_COLLECTION_DIR=$RESULTS_DIR"dom_collection/"
 mkdir -p $DOM_COLLECTION_DIR
 
+REDIR_TEST_DIR=$RESULTS_DIR"redirection/"
+mkdir -p $REDIR_TEST_DIR
+
 #########################################################################################
 
 # write the basic info to a file
@@ -252,6 +255,29 @@ echo "DOM COLLECTION FOR JS COMPLETE"
 echo "-------------------------------------------------------------------------"
 ################################################################################
 
+
+##############################################################################
+#######      08. NETWORK REQUESTS COLLECTION AND REDIRECTS      ############## 
+##############################################################################
+
+# Run the test specific capture
+DUMP_FILE=_redir_collection.pcap
+tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export REDIR_COLL_PID=$!
+echo "-------------------------------------------------------------------------"
+echo "07. RUNNING REDIRECTION TESTS"
+echo "-------------------------------------------------------------------------"
+
+cd ./manipulation_tests/redirection/
+python get_redirects.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_log"
+cd $DEFAULT_DIR
+
+# Kill the test specific capture
+kill -s TERM $REDIR_COLL_PID
+sleep 0.5
+echo "-------------------------------------------------------------------------"
+echo "REDIRECTION TESTS COMPLETE"
+echo "-------------------------------------------------------------------------"
+################################################################################
 
 echo "************************************************************************"
 echo "TESTS COMPLETED."

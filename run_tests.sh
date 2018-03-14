@@ -1,6 +1,7 @@
 #!/bin/bash
 rm -rf *_results/
 source ./venv/bin/activate
+source ./transfer/transfer_func.sh
 
 DEFAULT_DIR=`pwd`
 DEFAULT_DIR=$DEFAULT_DIR"/"
@@ -279,10 +280,22 @@ echo "REDIRECTION TESTS COMPLETE"
 echo "-------------------------------------------------------------------------"
 ################################################################################
 
-echo "************************************************************************"
-echo "TESTS COMPLETED."
-echo "************************************************************************"
+echo "-------------------------------------------------------------------------"
+echo "KILLING CAPTURES"
+echo "-------------------------------------------------------------------------"
 
 # Kill the process which is collecting the complete dump
 #kill -9 $COMPLETE_DUMP_PID
 kill -s TERM $COMPLETE_DUMP_PID
+
+wait
+
+echo "-------------------------------------------------------------------------"
+echo "REDIRECTION TESTS COMPLETE -- TRANSFERRING RESULTS"
+echo "-------------------------------------------------------------------------"
+
+transfer_file $TAG $RESULTS_DIR
+
+echo "************************************************************************"
+echo "TESTS COMPLETED."
+echo "************************************************************************"

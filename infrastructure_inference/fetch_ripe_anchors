@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Fetch an updated list of anchors.
+
+There is an elegant and proper way to do this. This isn't that.
+"""
+
+from __future__ import print_function
+
+import argparse
+import logging
+import os.path
+import re
+import sys
+
+import requests
+
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+
+DEFAULT_OUTFILE = os.path.join(BASE_PATH, "resources/ripe_atlas_anchors.txt")
+
+
+###################################################
+LOG_FORMAT = "%(asctime)-15s %(levelname)s %(module)s.%(funcName)s %(message)s"
+ANCHOR_FORMAT = re.compile("/anchors/([a-z]{2}-[a-z]{3}-as[0-9]+)/")
+FETCH_URL = "https://atlas.ripe.net/anchors/list/"
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--output_file", default=DEFAULT_OUTFILE,
+                        type=argparse.FileType('w'),
+                        help=("File to save anchors to."))
+    args = parser.parse_args()
+
+    logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+    logging.captureWarnings(True)
+
+    logging.info("Fetching anchor URL.")
+    result = requests.get(FETCH_URL)
+    if not result.ok:
+        logging.error("Failed to load URL. Exiting.")
+        sys.exit(1)
+
+    logging.info("Finding mentioned anchors.")
+    matches = set(ANCHOR_FORMAT.findall(result.text))
+
+    if len(matches) < 200:
+        logging.warning("We found vastly fewer anchors than expected!")
+
+    args.output_file.write(
+        "\n".join([x + ".anchors.atlas.ripe.net" for x in matches]))
+    logging.info("Done.")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

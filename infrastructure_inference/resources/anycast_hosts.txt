@@ -1,0 +1,13 @@
+# This file contains anycast hosts to traceroute.
+#
+# This list is NOT DNS-resolved, so only include IPs in it.
+
+8.8.8.8  # Google Public DNS
+9.9.9.9  # "Quad9"
+
+# These DNS roots were chosen because each is well distributed geographically.
+199.7.91.13     # DNS Root D
+192.203.230.10  # DNS Root E
+192.5.5.241     # DNS Root F
+192.58.128.30   # DNS Root J
+199.7.83.42     # DNS Root L

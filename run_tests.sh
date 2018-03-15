@@ -1,11 +1,16 @@
 #!/bin/bash
+
+if [[ $(whoami) != 'root' ]]; then
+    echo "This script must run as root! (precede command with 'sudo')" >&2
+    exit 1
+fi
+
 rm -rf *_results/
 source ./venv/bin/activate
 source ./transfer/transfer_func.sh
 
 DEFAULT_DIR=`pwd`
 DEFAULT_DIR=$DEFAULT_DIR"/"
-
 
 # collect information about the vpn service
 read -p "Enter the name of the VPN service being tested: " VPN_NAME
@@ -32,12 +37,6 @@ mkdir -p $DNS_LEAK_DIR
 
 RTC_LEAK_DIR=$RESULTS_DIR"rtc_leak/"
 mkdir -p $RTC_LEAK_DIR
-
-TUNNEL_FAILURE_DIR=$RESULTS_DIR"tunnel_failure/"
-mkdir -p $TUNNEL_FAILURE_DIR
-
-V6LEAK_DIR=$RESULTS_DIR"ipv6_leak/"
-mkdir -p $V6LEAK_DIR
 
 DNS_MANIP_DIR=$RESULTS_DIR"dns_manipulation/"
 mkdir -p $DNS_MANIP_DIR
@@ -75,6 +74,9 @@ DUMP_FILE=_dump_complete.pcap
 tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export COMPLETE_DUMP_PID=$!
 
 # save  ifconfig and dns config files after the VPN has been connected
+#
+# XXX: Note from Joe: Just FYI, infrastructure_inference has already been
+#      recording this.
 ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_connected"
 cat /etc/resolv.conf > $CONFIG_DIR$TAG"_resolv_connected"
 
@@ -93,7 +95,7 @@ echo "01. DNS LEAKAGE TEST"
 echo "-------------------------------------------------------------------------"
 
 cd ./leakage_tests/dns/
-python dns_leak_test.py $DNS_LEAK_DIR | tee $DNS_LEAK_DIR"dns_leak_log"
+python3 dns_leak_test.py $DNS_LEAK_DIR | tee $DNS_LEAK_DIR"dns_leak_log"
 
 cd $DEFAULT_DIR
 
@@ -118,9 +120,9 @@ echo "-------------------------------------------------------------------------"
 # set up http server
 
 cd ./leakage_tests/webrtc/
-python -m http.server 8080 & export HTTP_SERVER_PID=$!
+python3 -m http.server 8080 & export HTTP_SERVER_PID=$!
 
-python webrtc_leak.py $RTC_LEAK_DIR | tee $RTC_LEAK_DIR"rtc_leak_log"
+python3 webrtc_leak.py $RTC_LEAK_DIR | tee $RTC_LEAK_DIR"rtc_leak_log"
 
 cd $DEFAULT_DIR
 
@@ -132,52 +134,6 @@ echo "-------------------------------------------------------------------------"
 echo "WEBRTC TEST COMPLETE"
 echo "-------------------------------------------------------------------------"
 ################################################################################
-
-
-##############################################################################
-#############                 03. TUNNEL FAILURE TEST              ###########
-##############################################################################
-# Run the test specific capture
-DUMP_FILE=_tunnel_failuare.pcap
-tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export TUNNEL_LEAKAGE_PID=$!
-echo "-------------------------------------------------------------------------"
-echo "02. WEB RTC LEAK TEST"
-echo "-------------------------------------------------------------------------"
-
-cd ./leakage_tests/tunnel_failure/
-python run_test.py -v -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
-
-cd $DEFAULT_DIR
-
-# Kill the test specific capture
-kill -s TERM $TUNNEL_LEAKAGE_PID
-sleep 0.5
-echo "-------------------------------------------------------------------------"
-echo "TUNNEL FAILURE TEST COMPLETE"
-echo "-------------------------------------------------------------------------"
-################################################################################
-
-
-##############################################################################
-#############                 04. IPv6 LEAK TEST                ##############
-##############################################################################
-
-
-# Run the test specific capture
-DUMP_FILE=_ipv6_leak.pcap
-tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export IP_LEAKAGE_PID=$!
-echo "-------------------------------------------------------------------------"
-echo "02. IPV6 LEAK TEST"
-echo "-------------------------------------------------------------------------"
-
-cd $DEFAULT_DIR
-
-# Kill the test specific capture
-kill -s TERM $IP_LEAKAGE_PID
-sleep 0.5
-echo "-------------------------------------------------------------------------"
-echo "IPV6 LEAK TEST COMPLETE"
-echo "-------------------------------------------------------------------------"
 
 
 echo "################--EXECUTING MANIPULATION TESTS--############################"
@@ -221,7 +177,7 @@ echo "06. RUNNING NETALYZR"
 echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/netalyzr/
-python run_netalyzr.py $NETALYZR_DIR
+python3 run_netalyzr.py $NETALYZR_DIR
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -245,7 +201,7 @@ echo "07. RUNNING DOM COLLECTION FOR JS"
 echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/dom_collection/
-python dom_collection_js.py $DOM_COLLECTION_DIR | tee $DOM_COLLECTION_DIR"dom_collection_log"
+python3 dom_collection_js.py $DOM_COLLECTION_DIR | tee $DOM_COLLECTION_DIR"dom_collection_log"
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -269,7 +225,7 @@ echo "07. RUNNING REDIRECTION TESTS"
 echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/redirection/
-python get_redirects.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_log"
+python3 get_redirects.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_log"
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -278,6 +234,72 @@ sleep 0.5
 echo "-------------------------------------------------------------------------"
 echo "REDIRECTION TESTS COMPLETE"
 echo "-------------------------------------------------------------------------"
+
+##############################################################################
+###################       OMNIBUS TESTS COLLECTION       #####################
+##############################################################################
+
+run_test() {
+    test_func=$1
+    test_tag=$2
+    test_desc=$3
+
+    test_dir=$RESULTS_DIR$test_tag
+    mkdir -p $test_dir
+
+    # Run the test specific capture
+    DUMP_FILE=_${test_tag}.pcap
+    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export REDIR_COLL_PID=$!
+    echo "-------------------------------------------------------------------------"
+    echo "RUNNING $test_desc TESTS"
+    echo "-------------------------------------------------------------------------"
+
+    # Actually run the test
+    $test_func $test_dir
+
+    # Kill the test specific capture
+    kill -s TERM $REDIR_COLL_PID
+    sleep 0.5
+    echo "-------------------------------------------------------------------------"
+    echo "TEST $test_desc COMPLETE"
+    echo "-------------------------------------------------------------------------"
+}
+
+error_exit() {
+    echo $@ >&2; exit 1
+}
+
+test_backconnect() {
+    ./backconnect/backconnect -o $1
+}
+
+test_infra_infer() {
+    [[ -e ./infrastructure_inference/creds.json ]] || \
+        error_exit "Required creds.json file missing."
+
+    ./infrastructure_inference/run_tests \
+        -o $1 infrastructure_inference/creds.json
+}
+
+test_ipv6_leakage() {
+    python3 ./leakage_tests/ipv6/ipv6_leak.py \
+        -r leakage_tests/ipv6/v6_resolutions.csv $1
+}
+
+test_tunnel_failure() {
+    cd ./leakage_tests/tunnel_failure/
+    python3 run_test.py -v -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
+    cd $DEFAULT_DIR
+}
+
+run_test test_backconnect backconnect "BACKCONNECT"
+run_test test_infra_infer infrastructure_inference "INFRASTRUCTURE INFERENCE"
+run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"
+run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
+
+
+
+
 ################################################################################
 
 echo "-------------------------------------------------------------------------"

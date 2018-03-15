@@ -12,7 +12,7 @@ transfer_file() {
         | ssh \
             -o UserKnownHostsFile=$known_hosts \
             -o IdentitiesOnly=yes \
-            -o IdentityFile=dropoff_key \
+            -o IdentityFile=transfer/dropoff_key \
             -T \
             dropoff@vm129.sysnet.ucsd.edu $tag
     rv=$?

@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""Run basic metadata and infrastructure tests."""
+
+import argparse
+import json
+import logging
+import os
+import os.path
+import random
+import re
+import socket
+import sys
+
+import psutil
+import googlemaps
+
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_PATH, "include"))
+
+import utils  # noqa
+
+
+# Default directory to output result files into.
+DEFAULT_OUTDIR = "results"
+
+# Default file containing anchors to test.
+#
+# CAREFUL! Pinging is as much as 4s/host, and TCP_RTT is about 1s/host.
+DEFAULT_ANCHORFILE = os.path.join(
+    BASE_PATH, "resources/50_random_atlas_anchors.txt")
+# resources/ripe_atlas_anchors.txt is the full list
+
+# Default file containing anycast IPs to traceroute.
+#
+# CAREFUL! Traceroute can take 20s/host, plus 4s/host for ping.
+DEFAULT_ANYCASTFILE = os.path.join(BASE_PATH, "resources/anycast_hosts.txt")
+
+# These hosts return vanilla IP addresses.
+IPv6_FETCH_HOST = "https://ipv6.projekts.xyz"
+IPv4_FETCH_HOST = "https://ipv4.projekts.xyz"
+
+# How many RTTs should we measure, per host?
+RTTS_N_REQUESTS_PER_HOST = 10
+
+###################################################
+# Log output format for printing
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)-7s %(name)-12s %(funcName)-14s %(message)s")
+
+# Some patterns used in parsing
+DIRECT_ROUTE_PATTERN = re.compile("([0-9]{1,3}\.){3}[0-9]{1,3}/32")
+MULTISPACE_PATTERN = re.compile("\s+")
+
+# Columns from netstat, for parsing
+ROUTE_COLUMNS = [
+    "Destination", "Gateway", "Flags", "Refs", "Use", "Netif", "Expire"]
+
+
+logger = logging.getLogger("infra_infer")
+
+
+def test(output_file, test_name, *args, **kwargs):
+    """Decorator to run the decorated function with given metadata.
+
+    output_file:    filename (in output_directory) to open a handle for.
+    test_name:      used only for logging so we know how far along we are.
+    *args/**kwargs: passed along unmodified to the function when called.
+    """
+
+    def decorator(func):
+        def run_test(pargs):
+            outfile = os.path.join(pargs.output_directory, output_file)
+            with open(outfile, "w") as f:
+                func(f, pargs, *args, **kwargs)
+
+        test.TESTS.append((test_name, run_test))
+        return func
+    return decorator
+# List of tests to run. Populated by its decorator.
+test.TESTS = []
+
+
+def init(test_name, *args, **kwargs):
+    """Decorator to run the decorated function before tests.
+
+    test_name:      used only for logging so we know how far along we are.
+    *args/**kwargs: passed along unmodified to the function when called.
+    """
+
+    def decorator(func):
+        def run_test(pargs):
+            func(pargs, *args, **kwargs)
+        init.INITS.append((test_name, run_test))
+        return func
+    return decorator
+# List of initializations to run. Populated by its decorator.
+init.INITS = []
+
+
+@init("Broadcast ping to identify hosts")
+def bcast_ping_arp(args):
+    # arp -a
+    ipv6s = set()
+    ipv4s = set()
+    for interf, addrs in psutil.net_if_addrs().items():
+        logger.info("Checking for broadcast ping opportunities on %s", interf)
+        if interf in {"lo0", "en0"}:
+            continue
+
+        ipv4s.update([x.broadcast for x in addrs
+                      if x.family == socket.AF_INET and x.broadcast])
+        for addr in addrs:
+            if addr.family == socket.AF_INET6:
+                ipv6s.add(interf)
+
+        #for addr in addrs:
+        #    if addr.family == socket.AF_INET and addr.broadcast:
+        #        logger.info("Pinging %s", addr.broadcast)
+        #        utils.run(["ping", "-c4", addr.broadcast])
+        #    elif addr.family == socket.AF_INET6:
+        #        logger.info("Ping6ing ff02::1 on %s", interf)
+        #        utils.run(["ping6", "-c4", "ff02::1%" + interf])
+
+    logger.info("Pinging v4 broadcasts")
+    utils.nrun([["ping", "-c4", "-i.5", x] for x in ipv4s], delay=.2)
+
+    logger.info("Pinging v6 broadcasts")
+    utils.nrun([["ping6", "-c4", "-i.5", "ff02::1%" + x] for x in ipv6s],
+               delay=.2)
+
+
+@test("netstat-rn-finet6.out", "IPv6 routing dump", ["netstat", "-rnfinet6"])
+@test("netstat-rn-finet.out", "IPv4 routing dump", ["netstat", "-rnfinet"])
+@test("ifconfig.out", "ifconfig dump", ["ifconfig"])
+@test("ndp-pn.out", "ndp prefix list", ["ndp", "-pn"])
+@test("ndp-rn.out", "ndp router list", ["ndp", "-rn"])
+@test("ndp-an.out", "ndp entries list", ["ndp", "-an"])
+@test("arp-aln.out", "arp entries", ["arp", "-aln"])
+@test("resolve-conf.out", "resolve.conf dump", ["cat", "/etc/resolve.conf"])
+def fetch_command_output(f, args, command):
+    """Fetch the stdout of command; dump it to the given file handle."""
+    stdout, _ = utils.run(command)
+    f.write(stdout.decode("utf-8"))
+
+
+@test("egress-ip6.out", "IPv6 egress IP fetch", IPv6_FETCH_HOST)
+@test("egress-ip4.out", "IPv4 egress IP fetch", IPv4_FETCH_HOST)
+def save_web_contents(f, args, address):
+    """Fetches web contents and saves it to the file handle."""
+    resp, err = utils.fetch_web_contents(address)
+    f.write(resp if not err else err)
+
+
+@test("routed-pings.json", "pinging /32-routed IPs")
+def ping_routed(f, args):
+    """Ping all IPs that we have a direct route to."""
+
+    stdout, stderr = utils.run(["netstat", "-rnfinet"])  # , timeout=4)
+    stdout = stdout.decode("utf-8")
+    lines = [x for x in stdout.split("\n") if DIRECT_ROUTE_PATTERN.match(x)]
+    lines = [MULTISPACE_PATTERN.split(x) for x in lines]
+    lines = [dict(zip(ROUTE_COLUMNS, x)) for x in lines]
+    lines = [x for x in lines if not x["Destination"] == "255.255.255.255/32"]
+    lines = [x for x in lines if x["Netif"] not in {"en0", "lo0", "vboxnet"}]
+    output = utils.ping_all(
+        [line["Destination"].split("/", 1)[0] for line in lines])
+
+    json.dump(output, f)
+
+
+@test("ping-egress.json", "pinging egress v4 IP")
+def ping_egress(f, args):
+    """Ping egress IPv4 IP."""
+    ip, err = utils.fetch_web_contents(IPv4_FETCH_HOST)
+
+    if err:
+        json.dump({"error": err}, f)
+        return
+
+    output = utils.get_ping_stats(ip)
+    json.dump(output, f)
+
+
+@test("anchors-stats.json", "ping/RTT anchors")
+def anchor_stats(f, args):
+    """Measures RTT and pings all RIPE Atlas anchors in the anchor file.
+
+    We want to be able to do this with lots of anchors, so we don't traceroute;
+    traceroute is slow.
+    """
+    anchors = utils.get_file_contents(args.anchor_file)
+
+    if args.limit_anchors:
+        logger.info("Limiting ourselves to {} random anchors.".format(
+            args.limit_anchors))
+        anchors = random.sample(anchors, args.limit_anchors)
+
+    logger.info("Found {} hosts to connect to.".format(len(anchors)))
+    host_ips = utils.get_ips(anchors)
+
+    if None in [y for (x, y) in host_ips]:
+        logger.warning("Didn't get IP for all hosts. Retrying once.")
+        host_ips = utils.get_ips(anchors)
+
+    if None in [y for (x, y) in host_ips]:
+        logger.warning("Still didn't get IPs for some. Removing bad hosts.")
+        host_ips = [(x, y) for (x, y) in host_ips if y is not None]
+        logger.warning("Left with %d hosts to connect to.", len(host_ips))
+
+    rtts = {}
+    if args.skip_scapy:
+        logger.info("Skipping TCP-based RTT measurements")
+    else:
+        logger.info("Calculating RTT via TCP... this may take some time.")
+        from synack_rtt import get_rtts
+        rtts = get_rtts([y for (x, y) in host_ips], RTTS_N_REQUESTS_PER_HOST)
+
+    results = {}
+    logger.info("Done. Moving on to pinging anchors.")
+    for i, (host, ip) in enumerate(host_ips):
+        logger.info("... [{:3}/{}] {}".format(i + 1, len(host_ips), host))
+        results[host] = {
+            "ip": ip,
+            "rtts": rtts.get(ip, None),
+            "pings": utils.get_ping_stats(ip),
+        }
+
+    json.dump(results, f)
+
+
+@test("anycast-stats.json", "ping/traceroute anycast servers")
+def traceroute_anycast(f, args):
+    """Pings and traceroutes all anycast IPs in the anycast file."""
+    anycast_ips = utils.get_file_contents(args.anycast_file)
+
+    logger.info("Found {} anycast hosts.".format(len(anycast_ips)))
+    results = {}
+    logger.info("Tracerouting anycast IPs.")
+    traceroutes = utils.nrun(
+        [["traceroute", "-m15", "-w1", x] for x in anycast_ips],
+        delay=.19)
+
+    logger.info("Pinging anycast IPs.")
+    pings = utils.nrun(
+        [["ping", "-t3", "-c20", "-nq", "-i0.7", x] for x in anycast_ips],
+        delay=.11)
+
+    logger.info("Collating...")
+    for i, (ip, ping, traceroute) in enumerate(zip(
+            anycast_ips, pings, traceroutes)):
+        logger.info("... [{:2}/{}] {}".format(i + 1, len(anycast_ips), ip))
+        traceroute = traceroute[0].decode("utf-8")
+        results[ip] = {
+            "pings": utils.process_ping_output(ping[0]),
+            "traceroute": traceroute,
+        }
+
+    json.dump(results, f)
+
+
+@test("google-geo.json", "Google IP-based geolocation")
+def google_geo(f, args):
+    creds = json.load(args.credentials_file)
+
+    client = googlemaps.Client(creds["google_api_key"])
+    loc = client.geolocate()
+    rg = client.reverse_geocode(loc["location"])
+
+    output = {"geolocation": loc, "geocode": rg}
+
+    json.dump(output, f)
+
+
+def run_tests(args):
+    """Iterate over TESTS and run each test in turn."""
+
+    for i, (init_name, init_func) in enumerate(init.INITS):
+        logger.info("Starting initialization [{:2}/{}]: {}".format(
+            i + 1, len(init.INITS), init_name))
+        init_func(args)
+
+    for i, (test_name, test_func) in enumerate(test.TESTS):
+        logger.info("Starting test [{:2}/{}]: {}".format(
+            i + 1, len(test.TESTS), test_name))
+        test_func(args)
+
+    logger.info("All done!")
+
+
+def get_args():
+    """Retrieve arguments for function."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="increase verbosity")
+    parser.add_argument("-o", "--output_directory", default=DEFAULT_OUTDIR,
+                        help=("Directory in which to save output."
+                              " Defaults to 'results'. Creates directory if it"
+                              " doesn't exit"))
+    parser.add_argument("-a", "--anchor_file", default=DEFAULT_ANCHORFILE,
+                        help=("File with HTTPS servers to measure RTT to."))
+    parser.add_argument("--limit_anchors", type=int, default=0,
+                        help=("Measure against this many random anchors "
+                              "instead of the complete set."))
+    parser.add_argument("-y", "--anycast_file", default=DEFAULT_ANYCASTFILE,
+                        help=("File with anycast IPs to ping/traceroute."))
+    parser.add_argument("--skip_scapy", action="store_true",
+                        help=("Skip the scapy-based TCPRTT. "
+                              "This is both faster and avoids the hard "
+                              "dependency."))
+    parser.add_argument("credentials_file", type=argparse.FileType('r'),
+                        help=(".json containing keys. See sample_creds.json."))
+    return parser.parse_args()
+
+
+def setup_logging(verbose, logfile=None):
+    root_logger = logging.getLogger()
+    formatter = logging.Formatter(LOG_FORMAT)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(formatter)
+    root_logger.addHandler(streamhandler)
+
+    if logfile:
+        filehandler = logging.FileHandler(logfile)
+        filehandler.setFormatter(formatter)
+        root_logger.addHandler(filehandler)
+
+    root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+
+def main():
+    args = get_args()
+
+    outdir = args.output_directory
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
+
+    logfile = os.path.join(outdir, "infrastructure_inference.log")
+
+    setup_logging(args.verbose, logfile)
+    logging.captureWarnings(True)
+
+    if os.geteuid() != 0 and not args.skip_scapy:
+        logger.error("Must run as root when running scapy-based tests.")
+        sys.exit(1)
+
+    run_tests(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

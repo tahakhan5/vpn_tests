@@ -1,0 +1,5 @@
+pypcap
+scapy
+requests
+googlemaps
+psutil

@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""A test to detect public accessibility.
+
+Do you get a public IP address? If you're on IPv6, you almost certainly do. If
+you do, is it firewalled from the internet? This test finds out.
+
+THIS TEST REQUIRES THAT THE SYSTEM FIREWALL IS DISABLED.
+
+The test works by listening on a port, then asking a machine on the internet to
+connect to that port. If that succeeds, then the system is publicly accessible.
+
+We do this a couple of times on different ports.
+
+We try IPv4 & IPv6, but I doubt anyone gives out public IPv4 addresses.
+
+"""
+
+import argparse
+import json
+import logging
+import os
+import random
+import socket
+import socketserver
+import sys
+import threading
+import time
+
+import requests
+
+DEFAULT_OUTDIR = 'results'
+
+# Ports to query
+DEFAULT_PORTS = [5001, 8080, 5900, 443]
+#DEFAULT_PORTS = [5001, 5201]  # Permitted through mimir for testing
+
+# Time, in seconds, to wait before assuming that no connection is coming.
+DEFAULT_SOCKET_TIMEOUT = 5
+
+# Time, in seconds, to wait before requesting an inbound connection--
+#   This is the time that the system requires to setup an open socket.
+#   If the firewall is enabled, this is the time you have to click 'accept'
+DEFAULT_SETUP_SLEEP = 2
+
+
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)-7s %(name)-8s %(funcName)-12s %(message)s")
+
+
+IPV4_REQUEST_URL = "https://ipv4.projekts.xyz/api/backconnect/send/"
+IPV6_REQUEST_URL = "https://ipv6.projekts.xyz/api/backconnect/send/"
+
+
+logger = logging.getLogger("backconnect")
+
+
+def get_token():
+    """Generate a 32-character random hex token."""
+    token = "".join([random.choice("0123456789abcdef") for x in range(32)])
+    return token
+
+
+def request_connect(port, token, proto=4):
+    """Make a request for a backconnect and return (success, err_desc)."""
+    request_url = IPV6_REQUEST_URL if proto == 6 else IPV4_REQUEST_URL
+
+    r = requests.get(request_url +
+                     str(port) + "/" + token)
+    if not r.ok:
+        logger.error("Couldn't get response from server: %d", r.status_code)
+        return (False, "bad_request_status")
+    try:
+        result = r.json()
+    except ValueError:
+        logger.error("Couldn't parse JSON")
+        return (False, "json_parse_failure")
+
+    real_result = result.get("result", "failed")
+    logger.debug("Server reported our IP as: %s", result.get("ip", None))
+    return (real_result == "ok", "server_" + real_result)
+
+
+def setup_logging(verbose, logfile=None):
+    root_logger = logging.getLogger()
+    formatter = logging.Formatter(LOG_FORMAT)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(formatter)
+    root_logger.addHandler(streamhandler)
+
+    if logfile:
+        filehandler = logging.FileHandler(logfile)
+        filehandler.setFormatter(formatter)
+        root_logger.addHandler(filehandler)
+
+    root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+
+def try_connect(port, timeout, setup_sleep, proto=4):
+    """Check if we can accept incoming TCP connections on `port`."""
+
+    # Generate a random token to use for this purpose
+    token = get_token()
+
+    # Shared data between threads
+    shared = {}
+
+    # Asinine workaround for sharing data with externally-constructed handler.
+    def get_shared():
+        return shared
+
+    class ReusedTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+        address_family = socket.AF_INET6 if proto == 6 else socket.AF_INET
+
+        def __init__(self, timeout, *args, **kwargs):
+            self.timeout = timeout
+            super().__init__(*args, **kwargs)
+
+    class TokenHandler(socketserver.StreamRequestHandler):
+        def handle(self):
+            shared = get_shared()
+            shared['token'] = self.rfile.readline().strip().decode('utf-8')
+            #print("{} wrote:".format(
+            #    self.client_address[0]), shared['token'])
+
+    # I would have thought that "" would have been fine for either, but
+    # evidently not...  That said, AF_INET6 appears to listen on IPv4 as well,
+    # so we could just use that for both...
+    addr = "0.0.0.0" if proto == 4 else "::"
+    try:
+        server = ReusedTCPServer(timeout, (addr, port), TokenHandler)
+    except PermissionError:  # noqa -- this is defined, but linter doesn't know.
+        logger.error("Unable to bind to address. Not running as root?")
+        return False, "bind_failure"
+
+    thread = threading.Thread(target=server.handle_request)
+    thread.start()
+
+    # Sleep to allow thread to start and us to collect permissions.
+    # We could synchronize properly, but this ain't production code, and then
+    # we'd have to not just use server.handle_request
+    time.sleep(setup_sleep)
+
+    success, text = request_connect(port, token, proto)
+    if not success:
+        logger.debug("Failed to send backdata: %s", text)
+        return False, text
+
+    thread.join()
+    server.server_close()
+
+    received_token = shared.get('token', None)
+    if received_token is None:
+        logger.debug("Failed to receive token")
+        return False, "no_token"
+
+    if token != received_token:
+        # This would be weird.
+        logger.error("Received unexpected token: %s", received_token)
+        return False, "unexpected_token"
+
+    return True, "success"
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description="""
+        A test for checking if we're firewalled from the internet.
+
+        Please read this script's header for full details.
+    """)
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="increase verbosity")
+
+    parser.add_argument('-4', '--no_ipv4', action='store_true',
+                        help="do NOT query via IPv4")
+    parser.add_argument('-6', '--no_ipv6', action='store_true',
+                        help="do NOT query via IPv6")
+
+    parser.add_argument('-t', '--timeout', type=int,
+                        default=DEFAULT_SOCKET_TIMEOUT,
+                        help="socket timeout (time to wait before failing)")
+    parser.add_argument('-s', '--setup_sleep', type=int,
+                        default=DEFAULT_SETUP_SLEEP,
+                        help=("setup sleep time "
+                              "(2 is safe unless you have firewall enabled)"))
+
+    parser.add_argument('-o', '--output_directory', default=DEFAULT_OUTDIR,
+                        help="directory in which to store results")
+
+    parser.add_argument('-p', '--ports', default=DEFAULT_PORTS,
+                        type=lambda x: [int(y) for y in x.split(",")],
+                        help="comma-separated list of ports to query")
+    return parser.parse_args()
+
+
+def main():
+    args = get_args()
+
+    os.makedirs(args.output_directory, exist_ok=True)
+    logfile = os.path.join(args.output_directory, "backconnect.log")
+    outfile = os.path.join(args.output_directory, "backconnect.json")
+
+    setup_logging(args.verbose, logfile)
+
+    protos = [6, 4]
+    if args.no_ipv4:
+        protos.remove(4)
+        logger.debug("Disabled IPv4")
+    if args.no_ipv6:
+        protos.remove(6)
+        logger.debug("Disabled IPv6")
+
+    start_time = time.time()
+    meta = {"ports": args.ports, "protos": protos, "start_time": start_time}
+    logger.info("Start time: %d", start_time)
+    logger.info("Ports: %s", ",".join([str(x) for x in args.ports]))
+
+    results = []
+    for proto in protos:
+        logger.info("Testing IPv%d", proto)
+        for port in args.ports:
+            logger.debug("Testing port %d", port)
+
+            result, msg = try_connect(
+                port, args.timeout, args.setup_sleep, proto)
+
+            logger.info("IPv{} port {}: {} ({})".format(
+                proto, port, "SUCCESS" if result else "FAILURE", msg))
+
+            results.append(
+                {"proto": proto, "port": port, "result": result, "msg": msg})
+
+    end_time = time.time()
+
+    meta['results'] = results
+    meta['end_time'] = end_time
+
+    with open(outfile, 'w') as f:
+        json.dump(meta, f)
+
+    logger.info("Exited cleanly at: %d", end_time)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

@@ -257,7 +257,8 @@ run_test() {
 
     # Run the test specific capture
     DUMP_FILE=_${test_tag}.pcap
-    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export REDIR_COLL_PID=$!
+    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE &
+    export REDIR_COLL_PID=$!
     echo "-------------------------------------------------------------------------"
     echo "RUNNING $test_desc TESTS"
     echo "-------------------------------------------------------------------------"
@@ -267,7 +268,7 @@ run_test() {
 
     # Kill the test specific capture
     kill -s TERM $REDIR_COLL_PID
-    sleep 0.5
+    wait $REDIR_COLL_PID
     echo "-------------------------------------------------------------------------"
     echo "TEST $test_desc COMPLETE"
     echo "-------------------------------------------------------------------------"
@@ -295,7 +296,7 @@ test_ipv6_leakage() {
 
 test_tunnel_failure() {
     cd ./leakage_tests/tunnel_failure/
-    python3 run_test.py -v -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
+    python3 run_test.py -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
     cd $DEFAULT_DIR
 }
 
@@ -320,7 +321,21 @@ kill -s TERM $COMPLETE_DUMP_PID
 wait
 
 echo "-------------------------------------------------------------------------"
-echo "REDIRECTION TESTS COMPLETE -- TRANSFERRING RESULTS"
+echo "Waiting for internet to recover."
+
+wait_until_connected() {
+    ping -o -t2 google.com >/dev/null 2>&1
+    rv=$?
+    while [[ "$rv" -ne 0 ]]; do
+        echo -n '.'
+        sleep 1
+        ping -o -t2 google.com >/dev/null 2>&1
+        rv=$?
+    done
+}
+wait_until_connected
+
+echo -e "\nTransferring results"
 echo "-------------------------------------------------------------------------"
 
 transfer_file $TAG $RESULTS_DIR

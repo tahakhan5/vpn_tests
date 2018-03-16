@@ -21,9 +21,12 @@ INTERFACE_NAME = 'en0'
 PF_TOKEN = None
 
 SLEEP_TIME = 60
-N_PERIODS = 5
+N_PERIODS = 3
 
 LOG_FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
+
+
+logger = logging.getLogger("tun_fail")
 
 
 def get_args():
@@ -102,7 +105,7 @@ def deconfigure_pf():
 
     if not PF_TOKEN:
         return
-    logging.debug("Flushing firewall.")
+    logger.debug("Flushing firewall.")
     run(['pfctl', '-a', 'vpn_test', '-F', 'all', '-X', PF_TOKEN])
 
 
@@ -117,10 +120,10 @@ def try_connect(target_ips, timeout=2):
             result = r.status
         except socket.timeout:
             result = None
-            logging.info("Connection to {} failed: timeout".format(ip))
+            logger.debug("Connection to {} failed: timeout".format(ip))
         except Exception:
             result = None
-            logging.exception(
+            logger.exception(
                 "Connection to {} failed with unexpectedly".format(ip))
         results.append((ip, result))
     return results
@@ -140,58 +143,73 @@ def get_connect_count(target_ips, timeout=2):
             count += 1
     return count
 
+
+def setup_logging(verbose, logfile=None):
+    root_logger = logging.getLogger()
+    formatter = logging.Formatter(LOG_FORMAT)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(formatter)
+    root_logger.addHandler(streamhandler)
+
+    if logfile:
+        filehandler = logging.FileHandler(logfile)
+        filehandler.setFormatter(formatter)
+        root_logger.addHandler(filehandler)
+
+    root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+
 def main():
     args = get_args()
-    logging.basicConfig(filename=args.output, format=LOG_FORMAT, level=logging.DEBUG)
+    setup_logging(args.verbose, args.output)
 
     if os.geteuid() != 0:
-        logging.error("Must run as root.")
+        logger.error("Must run as root.")
         sys.exit(1)
 
     hosts = [x.rstrip() for x in args.hosts.readlines()
              if not x.startswith("#")]
     target_ips = get_ips_from_hostnames(hosts)
 
-    logging.debug("Mapping hosts to IPs")
+    logger.info("Mapping hosts to IPs")
     for x, y in zip(hosts, target_ips):
-        logging.info("Mapped host {} to {}".format(x, y))
+        logger.debug("Mapped host {} to {}".format(x, y))
 
     prev = time.time()
 
     # - Establish baseline connectivity
-    logging.debug("Establishing baseline")
+    logger.info("Establishing baseline")
     connect_count = get_connect_count(target_ips)
     passed = connect_count > len(target_ips) / 2
-    logging.info("Initial connection count: {} of {} ({})".format(
+    logger.info("Initial connection count: {} of {} ({})".format(
         connect_count, len(target_ips), "PASS" if passed else "FAIL"))
     if not passed:
         sys.exit(3)
 
     # - Configure pf with the extra anchor and -E
     # - Load the anchor rules
-    logging.debug("Blocking connections.")
+    logger.info("Blocking connections.")
     add_anchor_and_activate()
     add_blocking_rules(target_ips, args.interface)
 
     for i in range(N_PERIODS):
         sleep_time = SLEEP_TIME - time.time() + prev
-        logging.debug("Sleeping for {:.2f}s.".format(sleep_time))
+        logger.info("Sleeping for {:.2f}s.".format(sleep_time))
         time.sleep(sleep_time)
         prev = time.time()
 
-        logging.debug("Checking connectivity...")
+        logger.info("Checking connectivity...")
         connect_count = get_connect_count(target_ips)
         passed = connect_count == 0
-        logging.info("Check #{} count: {} of {} ({})".format(
-            i + 1, connect_count, len(target_ips),
+        logger.info("Check #{}/{} count: {} of {} ({})".format(
+            i + 1, N_PERIODS, connect_count, len(target_ips),
             "PASS" if passed else "FAIL"))
         if not passed:
             sys.exit(4 + i)
 
-    logging.info("All tests passed!")
+    logger.info("All tests passed!")
 
     # - AT EXIT, flush new rules and reconfigure pf w/o anchor and -X token
 
 if __name__ == "__main__":
     sys.exit(main())
-

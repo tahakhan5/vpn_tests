@@ -5,9 +5,17 @@ if [[ $(whoami) != 'root' ]]; then
     exit 1
 fi
 
-rm -rf *_results/
-source ./venv/bin/activate
-source ./transfer/transfer_func.sh
+### determine the root directory -- hackish but works with OS X and bash.
+pushd $(dirname $BASH_SOURCE) > /dev/null
+ROOT=$(pwd)
+popd >/dev/null
+###
+
+rm -rf $ROOT/*_results/
+source $ROOT/venv/bin/activate
+
+# Functions for uploading results and retrieving API keys.
+source $ROOT/transfer/transfer_func.sh
 
 DEFAULT_DIR=`pwd`
 DEFAULT_DIR=$DEFAULT_DIR"/"
@@ -274,8 +282,7 @@ test_backconnect() {
 }
 
 test_infra_infer() {
-    [[ -e ./infrastructure_inference/creds.json ]] || \
-        error_exit "Required creds.json file missing."
+    [[ -e ./infrastructure_inference/creds.json ]] || fetch_creds
 
     ./infrastructure_inference/run_tests \
         -o $1 infrastructure_inference/creds.json

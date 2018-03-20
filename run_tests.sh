@@ -26,12 +26,12 @@ DEFAULT_DIR=$DEFAULT_DIR"/"
 read -p "Enter the name of the VPN service being tested: " VPN_NAME
 read -p "Enter the country for the server you are connecting to: " VPN_COUNTRY
 read -p "Enter the city you are connectiong to (leave blank if unavailable): " VPN_CITY
-read -p "Enter a SHORT + UNIQUE descriptor for the supposed VPN current location (e.g.  'sfo1') : " VPN_LOCATION
+read -p "Enter a SHORT + UNIQUE descriptor for the supposed VPN current location (e.g.  'sfo1') : " VPN_LOC_TAG
 
 # create a tag for labeling purposes
-CLEAN_VPN_NAME=$(echo "${VPN_NAME// /_}" | clean_str)
-CLEAN_VPN_LOCATION=$(echo "${VPN_LOCATION// /_}" | clean_str)
-TAG=${CLEAN_VPN_NAME}_${CLEAN_VPN_LOCATION}
+PATH_SAFE_VPN_NAME=$(echo "${VPN_NAME// /_}" | clean_str)
+PATH_SAFE_VPN_LOC_TAG=$(echo "${VPN_LOC_TAG// /_}" | clean_str)
+TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 
 #########################################################################################
 
@@ -66,10 +66,10 @@ mkdir -p $REDIR_TEST_DIR
 #########################################################################################
 
 # write the basic info to a file
-echo $VPN_NAME > $RESULTS_DIR$TAG"_info"
-echo $VPN_COUNTRY >> $RESULTS_DIR$TAG"_info"
-echo $VPN_CITY >> $RESULTS_DIR$TAG"_info"
-echo $VPN_LOCATION >> $RESULTS_DIR$TAG"_info"
+echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
+echo COUNTRY:$VPN_COUNTRY >> $RESULTS_DIR$TAG"_info"
+echo CITY:$VPN_CITY >> $RESULTS_DIR$TAG"_info"
+echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
 
 # save the default ifconfig and dns nsconfig file
 ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_default"
@@ -272,9 +272,9 @@ test_ipv6_leakage() {
 }
 
 test_tunnel_failure() {
-    cd ./leakage_tests/tunnel_failure/
+    pushd ./leakage_tests/tunnel_failure/ > /dev/null
     python3 run_test.py -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
-    cd $DEFAULT_DIR
+    popd > /dev/null
 }
 
 test_recursive_dns_origin() {

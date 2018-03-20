@@ -6,12 +6,12 @@ run_test() {
     test_tag=$2     # Friendly name/tag for this *test*
     test_desc=$3    # A name/description of this test for humans
 
-    test_dir=$RESULTS_DIR$test_tag
+    test_dir=$RESULTS_DIR/$test_tag
     mkdir -p $test_dir
 
     # Run the test specific capture
     DUMP_FILE=_${test_tag}.pcap
-    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE &
+    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$TAG$DUMP_FILE &
     export REDIR_COLL_PID=$!
     echo "-------------------------------------------------------------------------"
     echo "RUNNING $test_desc TESTS"

@@ -11,7 +11,7 @@ _dropoff_ssh() {
     ssh \
         -o UserKnownHostsFile=$known_hosts \
         -o IdentitiesOnly=yes \
-        -o IdentityFile=$ROOT/transfer/dropoff_key \
+        -o IdentityFile=$ROOT/includes/dropoff_key \
         -T dropoff@vm129.sysnet.ucsd.edu $@
     rv=$?
     rm $known_hosts

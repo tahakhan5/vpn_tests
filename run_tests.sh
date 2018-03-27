@@ -63,6 +63,10 @@ mkdir -p $DOM_COLLECTION_DIR
 REDIR_TEST_DIR=$RESULTS_DIR"redirection/"
 mkdir -p $REDIR_TEST_DIR
 
+SSL_TEST_DIR=$RESULTS_DIR"ssl/"
+mkdir -p $SSL_TEST_DIR
+
+
 #########################################################################################
 
 # write the basic info to a file
@@ -110,12 +114,12 @@ echo "-------------------------------------------------------------------------"
 
 cd ./leakage_tests/dns/
 python3 dns_leak_test.py $DNS_LEAK_DIR | tee $DNS_LEAK_DIR"dns_leak_log"
-
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
+sleep 1
 kill -s TERM $DNS_LEAKAGE_PID
-sleep 0.5
+
 echo "-------------------------------------------------------------------------"
 echo "DNS LEAKAGE TEST COMPLETE"
 echo "-------------------------------------------------------------------------"
@@ -141,13 +145,14 @@ python3 webrtc_leak.py $RTC_LEAK_DIR | tee $RTC_LEAK_DIR"rtc_leak_log"
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
+sleep 1
 kill -s TERM $RTC_LEAKAGE_PID
 kill -s TERM $HTTP_SERVER_PID
-sleep 0.5
+
 echo "-------------------------------------------------------------------------"
 echo "WEBRTC TEST COMPLETE"
 echo "-------------------------------------------------------------------------"
-################################################################################
+###############################################################################
 
 
 echo "################--EXECUTING MANIPULATION TESTS--############################"
@@ -171,8 +176,9 @@ cd ./manipulation_tests/dns/
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
+sleep 1
 kill -s TERM $DNS_MANIP_PID
-sleep 0.5
+
 echo "-------------------------------------------------------------------------"
 echo "DNS MANIPULATION TEST COMPLETE"
 echo "-------------------------------------------------------------------------"
@@ -195,8 +201,8 @@ python3 run_netalyzr.py $NETALYZR_DIR
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
+sleep 1
 kill -s TERM $NETALYZR_PID
-sleep 0.5
 echo "-------------------------------------------------------------------------"
 echo "NETALYZR TEST COMPLETE"
 echo "-------------------------------------------------------------------------"
@@ -219,8 +225,9 @@ python3 dom_collection_js.py $DOM_COLLECTION_DIR | tee $DOM_COLLECTION_DIR"dom_c
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
+sleep 1
 kill -s TERM $DOM_COLL_PID
-sleep 0.5
+
 echo "-------------------------------------------------------------------------"
 echo "DOM COLLECTION FOR JS COMPLETE"
 echo "-------------------------------------------------------------------------"
@@ -243,11 +250,37 @@ python3 get_redirects.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_log"
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
+sleep 1
 kill -s TERM $REDIR_COLL_PID
-sleep 0.5
+
 echo "-------------------------------------------------------------------------"
 echo "REDIRECTION TESTS COMPLETE"
 echo "-------------------------------------------------------------------------"
+
+##############################################################################
+#########                SSL CERTIFICATE CHEKER               ################
+##############################################################################
+
+
+# Run the test specific capture
+DUMP_FILE=_ssl_collection.pcap
+tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export SSL_COLL_PID=$!
+echo "-------------------------------------------------------------------------"
+echo "06. RUNNING SSL COLLECTION TESTS"
+echo "-------------------------------------------------------------------------"
+
+cd ./manipulation_tests/ssl/
+python cert_collector.py $SSL_TEST_DIR | tee $SSL_TEST_DIR"ssl_log"
+cd $DEFAULT_DIR
+
+# Kill the test specific capture
+sleep 1
+kill -s TERM $SSL_COLL_PID
+
+echo "-------------------------------------------------------------------------"
+echo "SSL TESTS COMPLETE"
+echo "-------------------------------------------------------------------------"
+
 
 ##############################################################################
 ###################       CONCISE TESTS COLLECTION       #####################

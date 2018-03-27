@@ -1,0 +1,6 @@
+google.com
+facebook.com
+gmail.com
+uic.edu
+illinois.edu
+reddit.com

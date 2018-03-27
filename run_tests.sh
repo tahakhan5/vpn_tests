@@ -135,9 +135,11 @@ echo "-------------------------------------------------------------------------"
 # set up http server
 
 cd ./leakage_tests/webrtc/
+unzip -q ChromeProfile.zip
 python3 -m http.server 8080 & export HTTP_SERVER_PID=$!
 
 python3 webrtc_leak.py $RTC_LEAK_DIR | tee $RTC_LEAK_DIR"rtc_leak_log"
+rm -rf ChromeProfile/
 
 cd $DEFAULT_DIR
 

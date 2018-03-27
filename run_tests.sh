@@ -54,9 +54,6 @@ mkdir -p $RTC_LEAK_DIR
 DNS_MANIP_DIR=$RESULTS_DIR"dns_manipulation/"
 mkdir -p $DNS_MANIP_DIR
 
-NETALYZR_DIR=$RESULTS_DIR"netalyzr/"
-mkdir -p $NETALYZR_DIR
-
 DOM_COLLECTION_DIR=$RESULTS_DIR"dom_collection/"
 mkdir -p $DOM_COLLECTION_DIR
 
@@ -186,30 +183,6 @@ echo "-------------------------------------------------------------------------"
 
 
 ##############################################################################
-#############              06. NETALYZER TEST                   ##############
-##############################################################################
-
-# Run the test specific capture
-DUMP_FILE=_netalyzr.pcap
-tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export NETALYZR_PID=$!
-echo "-------------------------------------------------------------------------"
-echo "04. RUNNING NETALYZR"
-echo "-------------------------------------------------------------------------"
-
-cd ./manipulation_tests/netalyzr/
-python3 run_netalyzr.py $NETALYZR_DIR
-cd $DEFAULT_DIR
-
-# Kill the test specific capture
-sleep 1
-kill -s TERM $NETALYZR_PID
-echo "-------------------------------------------------------------------------"
-echo "NETALYZR TEST COMPLETE"
-echo "-------------------------------------------------------------------------"
-################################################################################
-
-
-##############################################################################
 ##############      DOM COLLECTION FOR JS INTERCEPTION        ################
 ##############################################################################
 
@@ -315,13 +288,22 @@ test_recursive_dns_origin() {
     dig cvst-$datestamp-${TAG//_/-}.homezone-project.eu > $1/lookup.out
 }
 
+test_netalyzr() {
+    pushd ./manipulation_tests/netalyzr/ > /dev/null
+    python3 run_netalyzr.py $NETALYZR_DIR
+    popd > /dev/null
+}
+
 
 # Run the tests we want, while capturing pcaps and giving feedback to the user
+run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"
 run_test test_backconnect backconnect "BACKCONNECT"
 run_test test_infra_infer infrastructure_inference "INFRASTRUCTURE INFERENCE"
 run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"
+
+# These tests should run at the end
+run_test test_netalyzr netalyzr "NETALYZR"
 run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
-run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"
 
 
 ################################################################################

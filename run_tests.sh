@@ -54,15 +54,11 @@ mkdir -p $RTC_LEAK_DIR
 DNS_MANIP_DIR=$RESULTS_DIR"dns_manipulation/"
 mkdir -p $DNS_MANIP_DIR
 
-DOM_COLLECTION_DIR=$RESULTS_DIR"dom_collection/"
-mkdir -p $DOM_COLLECTION_DIR
-
-REDIR_TEST_DIR=$RESULTS_DIR"redirection/"
+REDIR_TEST_DIR=$RESULTS_DIR"redirection_dom/"
 mkdir -p $REDIR_TEST_DIR
 
 SSL_TEST_DIR=$RESULTS_DIR"ssl/"
 mkdir -p $SSL_TEST_DIR
-
 
 #########################################################################################
 
@@ -184,44 +180,20 @@ echo "-------------------------------------------------------------------------"
 ################################################################################
 
 
-##############################################################################
-##############      DOM COLLECTION FOR JS INTERCEPTION        ################
-##############################################################################
-
-# Run the test specific capture
-DUMP_FILE=_dom_collection.pcap
-tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export DOM_COLL_PID=$!
-echo "-------------------------------------------------------------------------"
-echo "05. RUNNING DOM COLLECTION FOR JS"
-echo "-------------------------------------------------------------------------"
-
-cd ./manipulation_tests/dom_collection/
-python3 dom_collection_js.py $DOM_COLLECTION_DIR | tee $DOM_COLLECTION_DIR"dom_collection_log"
-cd $DEFAULT_DIR
-
-# Kill the test specific capture
-sleep 1
-kill -s TERM $DOM_COLL_PID
-
-echo "-------------------------------------------------------------------------"
-echo "DOM COLLECTION FOR JS COMPLETE"
-echo "-------------------------------------------------------------------------"
-################################################################################
-
 
 ##############################################################################
 #########      NETWORK REQUESTS COLLECTION AND REDIRECTS      ################
 ##############################################################################
 
 # Run the test specific capture
-DUMP_FILE=_redir_collection.pcap
+DUMP_FILE=_redir_dom_collection.pcap
 tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export REDIR_COLL_PID=$!
 echo "-------------------------------------------------------------------------"
-echo "06. RUNNING REDIRECTION TESTS"
+echo "06. RUNNING REDIRECTION AND DOM COLLECTION TESTS"
 echo "-------------------------------------------------------------------------"
 
-cd ./manipulation_tests/redirection/
-python3 get_redirects.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_log"
+cd ./manipulation_tests/redirection_dom/
+python3 get_redirects_dom.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_dom_log"
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -229,7 +201,7 @@ sleep 1
 kill -s TERM $REDIR_COLL_PID
 
 echo "-------------------------------------------------------------------------"
-echo "REDIRECTION TESTS COMPLETE"
+echo "REDIRECTION AND DOM TESTS COMPLETE"
 echo "-------------------------------------------------------------------------"
 
 ##############################################################################
@@ -315,7 +287,6 @@ echo "KILLING CAPTURES"
 echo "-------------------------------------------------------------------------"
 
 # Kill the process which is collecting the complete dump
-#kill -9 $COMPLETE_DUMP_PID
 kill -s TERM $COMPLETE_DUMP_PID
 
 wait

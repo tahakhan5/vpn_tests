@@ -76,14 +76,6 @@ echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
 #ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_default"
 #cat /etc/resolv.conf > $CONFIG_DIR$TAG"_resolv_default"
 
-## prompt suer to connect to the VPN service
-#printf "\n************************************************************************\n"
-#read -p "CONNET TO THE VPN SERVICE, WHEN THE CONNECTION IS ESTABLISHED, HIT RETURN..."
-#printf "************************************************************************\n"
-#read -p "ARE YOU SURE THE VPN CONNECTION ESTSABLISHED? [Y/N]: "
-#printf "************************************************************************\n"
-
-
 # run tcp dump instance which collects the complete trace of VPN service
 DUMP_FILE=_dump_complete.pcap
 tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$TAG$DUMP_FILE &
@@ -97,8 +89,6 @@ ifconfig -v > $CONFIG_DIR/$TAG"_ifconfig_connected"
 cat /etc/resolv.conf > $CONFIG_DIR/$TAG"_resolv_connected"
 
 ##############################################################################
-#############                 01. DNS LEAK TEST                    ###########
-##############################################################################
 
 test_dns_leakage() {
     pushd ./leakage_tests/dns/ > /dev/null
@@ -106,14 +96,10 @@ test_dns_leakage() {
     popd > /dev/null
 }
 
-################################################################################
-
-##############################################################################
-#############                 02. WEBRTC LEAK TEST                 ###########
-##############################################################################
-
 test_webrtc_leak() {
     pushd ./leakage_tests/webrtc/ > /dev/null
+
+    unzip -q ChromeProfile.zip
 
     python3 -m http.server 8080 &
     export HTTP_SERVER_PID=$!
@@ -121,16 +107,10 @@ test_webrtc_leak() {
     python3 webrtc_leak.py $1 | tee $1/rtc_leak_log
     kill -s TERM $HTTP_SERVER_PID
 
+    rm -rf ChromeProfile
+
     popd > /dev/null
 }
-
-################################################################################
-
-
-
-##############################################################################
-#############         05. DNS MANIPULATION TEST                    ###########
-##############################################################################
 
 test_dns_manipulation() {
     pushd ./manipulation_tests/dns/ > /dev/null
@@ -138,50 +118,17 @@ test_dns_manipulation() {
     popd > /dev/null
 }
 
-################################################################################
-
-
-##############################################################################
-#############              06. NETALYZER TEST                   ##############
-##############################################################################
-
 test_netalyzr() {
     pushd ./manipulation_tests/netalyzr/ > /dev/null
     python3 run_netalyzr.py $1
     popd > /dev/null
 }
 
-################################################################################
-
-
-##############################################################################
-##############      DOM COLLECTION FOR JS INTERCEPTION        ################
-##############################################################################
-
-test_dom_collection() {
-    pushd ./manipulation_tests/dom_collection/ > /dev/null
-    python3 dom_collection_js.py $1 | tee $1/dom_collection_log
+test_dom_redirection() {
+    pushd ./manipulation_tests/redirection_dom/ > /dev/null
+    python3 get_redirects_dom.py $1 | tee $1/redirection_dom_log
     popd > /dev/null
 }
-
-################################################################################
-
-
-##############################################################################
-#########      NETWORK REQUESTS COLLECTION AND REDIRECTS      ################
-##############################################################################
-
-test_redirection() {
-    pushd ./manipulation_tests/redirection/ > /dev/null
-    python3 get_redirects.py $1 | tee $1/redirection_log
-    popd > /dev/null
-}
-
-##############################################################################
-###################        JOE'S TESTS COLLECTION        #####################
-##############################################################################
-
-# First, define how to run each of our tests
 
 test_backconnect() {
     ./backconnect/backconnect -o $1
@@ -221,8 +168,7 @@ run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"
 echo "##############--EXECUTING MANIPULATION TESTS--##########################"
 run_test test_dns_manipulation dns_manipulation "DNS MANIPULATION"
 run_test test_netalyzr netalyzr "NETALYZR"
-run_test test_dom_collection dom_collection "DOM COLLECTION"
-run_test test_redirection redir_collection "REDIRECTION"
+run_test test_dom_redirection dom_redirection "DOM & REDIRECTION"
 
 echo "#############--EXECUTING INFRASTRUCTURE TESTS--#########################"
 run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"

@@ -10,6 +10,7 @@ import requests
 import time
 
 
+
 def get_redirects_and_dom(results_dir, host):
 
     # make a request to that domain
@@ -17,6 +18,8 @@ def get_redirects_and_dom(results_dir, host):
     caps['loggingPrefs'] = {'performance': 'ALL'}
     driver = webdriver.Chrome('./chromedriver', desired_capabilities=caps)
     driver.set_window_size(1920, 1500)
+    driver.set_page_load_timeout(10)
+
     driver.get("http://"+host)
     time.sleep(0.25)
 
@@ -92,9 +95,6 @@ def get_redirects_and_dom(results_dir, host):
     with open(results_dir+"redirects/"+host+"/page_redirs.txt", 'w') as outfile:
         for x in range(0, len(redirect_chain)):
             outfile.write(str(redirect_chain[x])+","+str(type_chain[x])+"\n")
-
-    driver.close()
-
     
     # Get any header basesd redirects
     redir_history = []
@@ -112,20 +112,19 @@ def get_redirects_and_dom(results_dir, host):
                 outfile.write(str(redir_history[x])+","+str(redir_codes[x])+"\n")
 
 
-    
 def main():
+    
     results_dir = sys.argv[1]
     subprocess.call(["mkdir", results_dir+"screenshots", results_dir+"DOM", results_dir+"text", results_dir+"final_urls", results_dir+"redirects"])
     web_hosts = []
+
     with open("hosts.txt") as f:
         for line in f:
-
             web_hosts.append(line.strip("\n").strip(" "))
-
     for host in web_hosts:
         try:
             get_redirects_and_dom(results_dir, host)
-        except:
+        except Exception as e:
             print("ERROR while collecting data for: "+host)
 
 if __name__ == "__main__":

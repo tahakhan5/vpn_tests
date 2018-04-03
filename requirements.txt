@@ -1,0 +1,6 @@
+pypcap
+scapy
+requests
+googlemaps
+psutil
+selenium

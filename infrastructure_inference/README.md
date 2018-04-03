@@ -7,14 +7,10 @@ See Google Doc for description of most of this test's objectives.
 INSTALLING
 ==========
 
-You will need to install `libdnet` as well as some python packages.
-
-You can do this however you'd like, but I recommend:
-
-```
-    $ brew install libdnet
-    $ pip3 install -r requirements.txt
-```
+If you've already installed the prerequisites from the parent dir, you
+shouldn't need anything else. If you're running this separately,
+requirements.txt should be all the python packages. You also need libdnet,
+available through homebrew.
 
 BEFORE YOU RUN
 ==============

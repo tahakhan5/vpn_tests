@@ -3,7 +3,6 @@ from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
-from bs4 import BeautifulSoup
 import json
 import subprocess
 import requests
@@ -129,5 +128,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

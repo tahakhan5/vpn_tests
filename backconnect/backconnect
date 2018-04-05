@@ -25,6 +25,7 @@ import socketserver
 import sys
 import threading
 import time
+import urllib3
 
 import requests
 
@@ -44,7 +45,7 @@ DEFAULT_SETUP_SLEEP = 2
 
 
 LOG_FORMAT = (
-    "%(asctime)s %(levelname)-7s %(name)-8s %(funcName)-12s %(message)s")
+    "%(asctime)s %(levelname)-7s %(name)-8s %(funcName)-15s %(message)s")
 
 
 IPV4_REQUEST_URL = "https://ipv4.projekts.xyz/api/backconnect/send/"
@@ -65,10 +66,18 @@ def request_connect(port, token, proto=4):
     request_url = IPV6_REQUEST_URL if proto == 6 else IPV4_REQUEST_URL
 
     try:
-        r = requests.get(request_url +
-                         str(port) + "/" + token)
+        r = requests.get(request_url + str(port) + "/" + token,
+                         timeout=3)
+    except (requests.exceptions.ConnectTimeout,
+            socket.timeout,
+            urllib3.exceptions.ConnectTimeoutError) as e:
+        logger.error("Timeout in request!")
+        return (False, "request_timeout_error")
+    except urllib3.exceptions.MaxRetryError as e:
+        logger.error("Max retries hit in request!")
+        return (False, "request_retry_error")
     except requests.exceptions.ConnectionError as e:
-        logger.exception("Connection Error in request!")
+        logger.error("Connection Error in request!")
         return (False, "request_connection_error")
 
     if not r.ok:
@@ -138,7 +147,7 @@ def try_connect(port, timeout, setup_sleep, proto=4):
         logger.error("Unable to bind to address. Not running as root?")
         return False, "bind_failure"
 
-    thread = threading.Thread(target=server.handle_request)
+    thread = threading.Thread(target=server.serve_forever)
     thread.start()
 
     # Sleep to allow thread to start and us to collect permissions.
@@ -149,10 +158,15 @@ def try_connect(port, timeout, setup_sleep, proto=4):
     success, text = request_connect(port, token, proto)
     if not success:
         logger.debug("Failed to send backdata: %s", text)
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
         return False, text
 
-    thread.join()
+    server.shutdown()
     server.server_close()
+    thread.join()
 
     received_token = shared.get('token', None)
     if received_token is None:

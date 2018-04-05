@@ -64,8 +64,13 @@ def request_connect(port, token, proto=4):
     """Make a request for a backconnect and return (success, err_desc)."""
     request_url = IPV6_REQUEST_URL if proto == 6 else IPV4_REQUEST_URL
 
-    r = requests.get(request_url +
-                     str(port) + "/" + token)
+    try:
+        r = requests.get(request_url +
+                         str(port) + "/" + token)
+    except requests.exceptions.ConnectionError as e:
+        logger.exception("Connection Error in request!")
+        return (False, "request_connection_error")
+
     if not r.ok:
         logger.error("Couldn't get response from server: %d", r.status_code)
         return (False, "bad_request_status")

@@ -24,12 +24,12 @@ def read_input_file(file_name):
 def write_to_file(file_name, raw_packet):
     wrpcap(file_name, raw_packet, append=True)
 
-# continously smiff packets and put them in a queue that is polled
+# continously sniff packets and put them in a queue that is polled
 def sniffing_tread(interface, pkt_queue):
     sniff(iface=interface,
           filter="(tcp or udp) and port 53",
           prn=lambda x : pkt_queue.put(x),
-          stop_callback=lambda: probes_completed)
+          stop_filter=lambda x: probes_completed)
 
 # make DNS requests
 def make_requests(domains, ip_addrs):

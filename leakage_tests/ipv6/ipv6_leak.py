@@ -106,7 +106,9 @@ def make_requests(shared, n_connections, n_errors_before_abort):
                 logger.warning(
                     "Encountered %d errors connecting to IPv6 hosts. "
                     "No IPv6 connectivity?", n_errors)
-                sys.exit(1)
+                shared['probes_completed'] = True
+                shared['error'] = True
+                return
             continue
 
     shared['probes_completed'] = True
@@ -206,7 +208,8 @@ def main():
     sniffer.start()
 
     # make Ipv6 requests to look for testing
-    requester_shared = {"resolutions": resolutions, "probes_completed": False}
+    requester_shared = {
+        "resolutions": resolutions, "probes_completed": False, "error": False}
     requester = Thread(target=make_requests,
                        args=(requester_shared,),
                        kwargs={
@@ -238,6 +241,9 @@ def main():
         except Empty:
             pass
     sniffer_shared['should_exit'] = True
+
+    if requester_shared["error"]:
+        return 20
 
     leaked_packets = look_for_leaked_dns(packet_list, resolutions)
     return 10 if leaked_packets > 0 else 0

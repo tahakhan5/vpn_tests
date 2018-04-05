@@ -16,6 +16,7 @@ def main():
     out_file = open(results_dir+"ssl_certs.json", 'w')
     with open('hosts.txt') as f:
         for line in f:
+            sys.stdout.flush()
             try:
                 host = line.strip("\n")
                 data = get_x509(host)
@@ -28,4 +29,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

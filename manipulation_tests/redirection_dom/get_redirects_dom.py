@@ -1,13 +1,14 @@
+import json
 import os
 import os.path
-import traceback
 import sys
+import time
+import traceback
+
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
-import json
-import time
 
 # TODO - when sites timeout (from set_page_load_timeout) they throw an
 #        exception that causes a return to main. That means that it doesn't
@@ -19,6 +20,7 @@ def get_redirects_and_dom(results_dir, host):
     # We can try to parse this later, but it's easy to do it now
     redirect_file_name = os.path.join(results_dir, "redirects.csv")
     redirect_file = open(redirect_file_name, 'w')
+
     def save_redirect_data(*args):
         redirect_file.write(str(time.time()) + ",")
         redirect_file.write(",".join(str(x) for x in args))
@@ -41,7 +43,7 @@ def get_redirects_and_dom(results_dir, host):
 
     # make a request to that domain
     try:
-        driver.get("http://"+host)
+        driver.get("http://" + host)
     except TimeoutException:
         print("TIMEOUT on", host)
         return
@@ -110,7 +112,7 @@ def get_redirects_and_dom(results_dir, host):
     driver.quit()
 
     # sort the relevant logs
-    sorted_ids = sorted(range(len(timestamps)),key=lambda x:timestamps[x])
+    sorted_ids = sorted(range(len(timestamps)), key=lambda x: timestamps[x])
     sorted_nr = [network_requests[i] for i in sorted_ids]
 
     # Write all network requests
@@ -128,7 +130,6 @@ def get_redirects_and_dom(results_dir, host):
 
     for x in sorted_nr:
         headers = x['params']['request']['headers']
-        req_params = x['params']['request']
         documentURL = x['params']['documentURL']
         cur_frame_id = x['params']['frameId']
         redir_type = None
@@ -137,21 +138,19 @@ def get_redirects_and_dom(results_dir, host):
             # an referer based redirect
             referer = '--'
             if 'Referer' in headers:
-                referer =headers['Referer']
+                referer = headers['Referer']
 
                 if referer in redirect_chain and cur_frame_id == init_frame_id:
                     redir_type = x['params']['initiator']['type']
                     type_chain.append(redir_type)
                     redirect_chain.append(documentURL)
 
-
     with open(os.path.join(results_dir, "page_redirs.txt"), 'w') as outfile:
         for x in range(0, len(redirect_chain)):
-            outfile.write(str(redirect_chain[x])+","+str(type_chain[x])+"\n")
+            outfile.write("{},{}\n".format(redirect_chain[x], type_chain[x]))
 
     # Header-based redirects are shown within the other logs for those
     # motivated to find them :-P
-    ## Get any header basesd redirects
     #redir_history = []
     #redir_codes = []
     #r = requests.get("http://"+host)
@@ -195,6 +194,7 @@ def main():
             print("ERROR while collecting data for:", host)
             traceback.print_exc()
         sys.stdout.flush()
+
 
 if __name__ == "__main__":
     main()

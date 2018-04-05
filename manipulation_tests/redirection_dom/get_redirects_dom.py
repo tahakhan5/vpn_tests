@@ -7,10 +7,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 import json
-import requests
 import time
-
-from pprint import pprint
 
 # TODO - when sites timeout (from set_page_load_timeout) they throw an
 #        exception that causes a return to main. That means that it doesn't
@@ -18,16 +15,9 @@ from pprint import pprint
 
 
 def get_redirects_and_dom(results_dir, host):
-    # Using this allows us to have 'hosts' that are actually full paths, which
-    # is useful for testing if nothing else.
-    filehost = host.replace("/", "_").replace(" ", "_")
-
-    redirect_dir = os.path.join(results_dir, "redirects", filehost)
-    os.makedirs(redirect_dir, exist_ok=True)
-
     # A file used throughout to to write redirect info to.
     # We can try to parse this later, but it's easy to do it now
-    redirect_file_name = os.path.join(redirect_dir, "redirects.csv")
+    redirect_file_name = os.path.join(results_dir, "redirects.csv")
     redirect_file = open(redirect_file_name, 'w')
     def save_redirect_data(*args):
         redirect_file.write(str(time.time()) + ",")
@@ -38,8 +28,7 @@ def get_redirects_and_dom(results_dir, host):
     # Environment variable are inherited by Chrome when its started.
     # SSLKEYLOGFILE stores TLS secrets so that we can parse the HTTPS traffic
     # in the pcaps.
-    os.environ['SSLKEYLOGFILE'] = os.path.join(
-        results_dir, "keys", filehost + ".pms")
+    os.environ['SSLKEYLOGFILE'] = os.path.join(results_dir, "keys/keys.pms")
 
     # 'performance' logging allows us to get info about network requests
     caps = DesiredCapabilities.CHROME
@@ -60,27 +49,21 @@ def get_redirects_and_dom(results_dir, host):
     time.sleep(0.25)
 
     # save screenshot
-    driver.save_screenshot(
-        os.path.join(results_dir, "screenshots", filehost + ".png"))
+    driver.save_screenshot(os.path.join(results_dir, "screenshot.png"))
 
     # save DOM
     html = driver.execute_script("return document.documentElement.outerHTML")
-    dom_file = open(os.path.join(results_dir, "DOM", filehost + ".html"), 'w')
-    dom_file.write(html)
-    dom_file.close()
+    with open(os.path.join(results_dir, "dom.html"), 'w') as dom_file:
+        dom_file.write(html)
 
     #save final URL
-    final_url = open(
-        os.path.join(results_dir, "final_urls", filehost + ".txt"), 'w')
-    final_url.write(str(driver.current_url))
-    final_url.close()
+    with open(os.path.join(results_dir, "final_urls.txt"), 'w') as final_url:
+        final_url.write(str(driver.current_url))
 
     # save body text
     text = driver.find_elements(By.XPATH, '//body')[0].text
-    text_file = open(
-        os.path.join(results_dir, "text", filehost + ".txt"), 'w')
-    text_file.write(text)
-    text_file.close()
+    with open(os.path.join(results_dir, "text.txt"), 'w') as text_file:
+        text_file.write(text)
 
     # Get the relevant network logs
     timestamps = []
@@ -89,7 +72,6 @@ def get_redirects_and_dom(results_dir, host):
         msg = log['message']
         log_val = json.loads(msg)
 
-        method = log_val['message']['method']
         params = log_val['message']['params']
 
         if log_val['message']['method'] == "Network.requestWillBeSent":
@@ -132,7 +114,7 @@ def get_redirects_and_dom(results_dir, host):
     sorted_nr = [network_requests[i] for i in sorted_ids]
 
     # Write all network requests
-    with open(os.path.join(redirect_dir, "request_logs.json"), 'w') as outfile:
+    with open(os.path.join(results_dir, "request_logs.json"), 'w') as outfile:
         for x in sorted_nr:
             json.dump(x, outfile)
             outfile.write("\n")
@@ -163,7 +145,7 @@ def get_redirects_and_dom(results_dir, host):
                     redirect_chain.append(documentURL)
 
 
-    with open(os.path.join(redirect_dir, "page_redirs.txt"), 'w') as outfile:
+    with open(os.path.join(results_dir, "page_redirs.txt"), 'w') as outfile:
         for x in range(0, len(redirect_chain)):
             outfile.write(str(redirect_chain[x])+","+str(type_chain[x])+"\n")
 
@@ -181,8 +163,7 @@ def get_redirects_and_dom(results_dir, host):
     #redir_codes.append(r.status_code)
 
     #with open(
-    #        os.path.join(results_dir, "redirects", host, "header_redirs.txt"),
-    #        'w') as outfile:
+    #        os.path.join(results_dir, "header_redirs.txt"), 'w') as outfile:
     #    for x in range(0, len(redir_history)):
     #        outfile.write(str(redir_history[x])+","+str(redir_codes[x])+"\n")
 
@@ -190,8 +171,6 @@ def get_redirects_and_dom(results_dir, host):
 def main():
 
     results_dir = sys.argv[1]
-    for d in ["screenshots", "DOM", "final_urls", "redirects", "keys"]:
-        os.makedirs(os.path.join(results_dir, d), exist_ok=True)
     web_hosts = []
 
     with open("hosts.txt") as f:
@@ -199,10 +178,19 @@ def main():
             if line.startswith("#"):
                 continue
             web_hosts.append(line.strip("\n").strip(" "))
+
     for i, host in enumerate(web_hosts):
         print("Processing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
+
+        # Using this allows us to have 'hosts' that are actually full paths,
+        # which is useful for testing if nothing else.
+        filehost = host.replace("/", "_").replace(" ", "_")
+        host_dir = os.path.join(results_dir, filehost)
+        for d in ["screenshots", "DOM", "final_urls", "redirects", "keys"]:
+            os.makedirs(os.path.join(host_dir, d), exist_ok=True)
+
         try:
-            get_redirects_and_dom(results_dir, host)
+            get_redirects_and_dom(host_dir, host)
         except Exception as e:
             print("ERROR while collecting data for:", host)
             traceback.print_exc()

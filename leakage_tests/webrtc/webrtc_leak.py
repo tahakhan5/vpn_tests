@@ -24,12 +24,14 @@ def sniffing_tread(interface, pkt_queue):
 
 # Establoishes a simple WebRTCDataConn and makes a STUN request
 def test_1(ips_file, source_file):
-
+	global test_completed
 	d = DesiredCapabilities.CHROME
 	d['loggingPrefs'] = { 'browser':'ALL'}
 	driver = webdriver.Chrome('./chromedriver')
-	driver.get("http://localhost:8080")
-	html = driver.page_source
+	for x in range(1,10):
+		driver.get("http://localhost:8080")
+		time.sleep(0.5)
+		html = driver.page_source
 
 	src_file = open(source_file, 'w')
 	src_file.write(html)
@@ -40,30 +42,33 @@ def test_1(ips_file, source_file):
 				json.dump(entry, json_file)
 
 
+	test_completed = True
+
 # This test establishes a p2p based RTC connection
 def test_2():
-	
+
 	global test_completed
 	chrome_options = Options()
-	chrome_options.add_argument("user-data-dir=./ChromeProfile/")	
-	driver = webdriver.Chrome('./chromedriver', chrome_options=chrome_options)	
+	chrome_options.add_argument("user-data-dir=./ChromeProfile/")
+	driver = webdriver.Chrome('./chromedriver', chrome_options=chrome_options)
 
 	driver.get("https://kevingleason.me/SimpleRTC/minivid.html")
 	driver.find_element_by_id('username').send_keys('user_1')
 	driver.find_element_by_class_name('fa-sign-in').click()
 	driver.find_element_by_name('number').send_keys('user_2')
 	driver.find_element_by_class_name('fa-phone-square').click()
-	
-	driver.execute_script('''window.open("https://kevingleason.me/SimpleRTC/minivid.html","_blank");''')
+
+	driver.execute_script(
+		'''window.open("https://kevingleason.me/SimpleRTC/minivid.html","_blank");''')
 	windows = driver.window_handles
 	driver.switch_to.window(windows[1])
-	driver.find_element_by_id('username').send_keys('user_2')	
+	driver.find_element_by_id('username').send_keys('user_2')
 	driver.find_element_by_class_name('fa-sign-in').click()
 	driver.find_element_by_name('number').send_keys('user_1')
 	driver.find_element_by_class_name('fa-phone-square').click()
 	time.sleep(15)
 	test_completed = True
-	
+
 
 def read_pacp_file(pcap_file):
 
@@ -83,6 +88,7 @@ def main():
 	packet_list = []
 	packets = Queue()
 
+
 	# start siffing packets on the respective interface
 	sniffer = Thread(target=sniffing_tread, args=(capture_interface, packets,))
 	sniffer.daemon = True
@@ -93,8 +99,8 @@ def main():
 	rtc_call_thread_1.start()
 
 	# Webrtc test number two which connects to websites
-	rtc_call_thread_2 = Thread(target=test_2)
-	rtc_call_thread_2.start()
+	# rtc_call_thread_2 = Thread(target=test_2)
+	# rtc_call_thread_2.start()
 
 	while True:
 		try:
@@ -111,3 +117,7 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
+
+
+

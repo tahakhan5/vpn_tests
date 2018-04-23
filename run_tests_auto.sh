@@ -52,6 +52,9 @@ PATH_SAFE_VPN_NAME=$(echo "${VPN_NAME// /_}" | clean_str)
 PATH_SAFE_VPN_LOC_TAG=$(echo "${VPN_LOC_TAG// /_}" | clean_str)
 TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 
+# fetch the git commit info
+COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
+
 ################################################################################
 
 # create respective directories for results
@@ -70,6 +73,7 @@ mkdir -p $TRACES_DIR
 echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
 echo CITY:$VPN_CITY >> $RESULTS_DIR$TAG"_info"
 echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
+echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
 
 # This can't be done here since the script is in a loop
 ## save the default ifconfig and dns nsconfig file
@@ -84,6 +88,8 @@ echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
 #      recording this.
 ifconfig -v > $CONFIG_DIR/$TAG"_ifconfig_connected"
 cat /etc/resolv.conf > $CONFIG_DIR/$TAG"_resolv_connected"
+EXTERNAL_VPN_IP=$(get_external_ip)
+echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 
 ##############################################################################
 
@@ -157,24 +163,23 @@ test_recursive_dns_origin() {
 
 # Run the tests we want, while capturing pcaps and giving feedback to the user
 
-echo "#################--EXECUTING LEAKAGE TESTS--############################"
+info "Executing leakage tests"
 run_test test_dns_leakage dns_leak "DNS LEAKAGE TEST"
 run_test test_webrtc_leak rtc_leak "WEBRTC LEAK"
 run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"
 
-echo "##############--EXECUTING MANIPULATION TESTS--##########################"
+info "Executing manipulation tests"
 run_test test_dns_manipulation dns_manipulation "DNS MANIPULATION"
-run_test test_netalyzr netalyzr "NETALYZR"
 run_test test_dom_redirection dom_redirection "DOM & REDIRECTION"
 
-echo "#############--EXECUTING INFRASTRUCTURE TESTS--#########################"
+info "Executing infrastructure tests"
 run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"
 run_test test_backconnect backconnect "BACKCONNECT"
 run_test test_infra_infer infrastructure_inference "INFRASTRUCTURE INFERENCE"
 
-# Keep this test last
-run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
-
+# Keep these tests last
+run_test test_netalyzr netalyzr "NETALYZR"
+#run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
 
 ################################################################################
 

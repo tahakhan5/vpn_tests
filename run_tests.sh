@@ -33,6 +33,9 @@ PATH_SAFE_VPN_NAME=$(echo "${VPN_NAME// /_}" | clean_str)
 PATH_SAFE_VPN_LOC_TAG=$(echo "${VPN_LOC_TAG// /_}" | clean_str)
 TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 
+# fetch the git commit info
+COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
+
 #########################################################################################
 
 # create respective directories for results
@@ -67,18 +70,25 @@ echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
 echo COUNTRY:$VPN_COUNTRY >> $RESULTS_DIR$TAG"_info"
 echo CITY:$VPN_CITY >> $RESULTS_DIR$TAG"_info"
 echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
+echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
 
-# save the default ifconfig and dns nsconfig file
+# save the default ifconfig, dns nsconfig file and IP
 ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_default"
 cat /etc/resolv.conf > $CONFIG_DIR$TAG"_resolv_default"
+PRE_VPN_IP=$(get_external_ip)
+echo $PRE_VPN_IP > $CONFIG_DIR$TAG"_pre_vpn_ip"
 
-# prompt suer to connect to the VPN service
-printf "\n************************************************************************\n"
-read -p "CONNET TO THE VPN SERVICE, WHEN THE CONNECTION IS ESTABLISHED, HIT RETURN..."
-printf "************************************************************************\n"
-read -p "ARE YOU SURE THE VPN CONNECTION ESTSABLISHED? [Y/N]: "
-printf "************************************************************************\n"
+# prompt user to connect to the VPN service
+color_box $COLOR_CYAN "*" "CONNECT TO THE VPN SERVICE"
+pause "Connected?"
 
+while ! confirm "ARE YOU SURE THE VPN CONNECTION IS ESTABLISHED?"; do :; done
+
+EXTERNAL_VPN_IP=$(get_external_ip)
+if [[ "$EXTERNAL_VPN_IP" == "$PRE_VPN_IP" ]]; then
+    error "Your IP address hasn't changed after connecting to the VPN!"
+    confirm "Continue anyway?"
+fi
 
 # We no longer capture an overall pcap because it doubles our result's size.
 
@@ -88,7 +98,7 @@ printf "************************************************************************
 #      recording this.
 ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_connected"
 cat /etc/resolv.conf > $CONFIG_DIR$TAG"_resolv_connected"
-
+echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 
 echo "################--EXECUTING LEAKAGE TESTS--############################"
 

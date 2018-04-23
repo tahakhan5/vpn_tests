@@ -1,6 +1,10 @@
 
-import sys, time, shlex, subprocess, csv
-from scapy.all import *
+import csv
+import shlex
+import subprocess
+import time
+
+import scapy.all as sc
 from threading import Thread
 from queue import Queue, Empty
 
@@ -8,10 +12,11 @@ probes_completed = False
 
 SLEEP_TIME = .1
 
+
 # read input test file which has domains and ip addresses
 def read_input_file(file_name):
     domains = []
-    ip_addrs =[]
+    ip_addrs = []
 
     with open(file_name, 'r') as csvfile:
         domain_reader = csv.reader(csvfile, delimiter=',')
@@ -20,16 +25,19 @@ def read_input_file(file_name):
             ip_addrs.append(row[1].strip("\n"))
     return domains, ip_addrs
 
+
 # write a a packet to the file
 def write_to_file(file_name, raw_packet):
-    wrpcap(file_name, raw_packet, append=True)
+    sc.wrpcap(file_name, raw_packet, append=True)
+
 
 # continously sniff packets and put them in a queue that is polled
 def sniffing_tread(interface, pkt_queue):
-    sniff(iface=interface,
-          filter="(tcp or udp) and port 53",
-          prn=lambda x : pkt_queue.put(x),
-          stop_filter=lambda x: probes_completed)
+    sc.sniff(iface=interface,
+             filter="(tcp or udp) and port 53",
+             prn=lambda x: pkt_queue.put(x),
+             stop_filter=lambda x: probes_completed)
+
 
 # make DNS requests
 def make_requests(domains, ip_addrs):
@@ -45,7 +53,7 @@ def make_requests(domains, ip_addrs):
 
     # execute simple queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_basic+domain),
+        proc = subprocess.Popen(shlex.split(query_basic + domain),
                                 stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
@@ -53,7 +61,7 @@ def make_requests(domains, ip_addrs):
 
     # execute google dns queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_google_dns+domain),
+        proc = subprocess.Popen(shlex.split(query_google_dns + domain),
                                 stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
@@ -61,7 +69,7 @@ def make_requests(domains, ip_addrs):
 
     # execute dig ANY queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_any+domain),
+        proc = subprocess.Popen(shlex.split(query_any + domain),
                                 stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
@@ -69,7 +77,7 @@ def make_requests(domains, ip_addrs):
 
     # execute dig v6 queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_v6+domain),
+        proc = subprocess.Popen(shlex.split(query_v6 + domain),
                                 stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
@@ -77,7 +85,7 @@ def make_requests(domains, ip_addrs):
 
     #  dig reverse query
     for ip_addr in ip_addrs:
-        proc = subprocess.Popen(shlex.split(reverse_query+ip_addr),
+        proc = subprocess.Popen(shlex.split(reverse_query + ip_addr),
                                 stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
@@ -85,8 +93,8 @@ def make_requests(domains, ip_addrs):
 
     #  dig axfr transfer for dns over TCP
     for ip_addr in ip_addrs:
-        proc = subprocess.Popen(shlex.split(dns_tcp+ip_addr),
-                                stdout=subprocess.PIPE)
+        subprocess.Popen(shlex.split(dns_tcp + ip_addr),
+                         stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
     print('DNS over TCP completed')
@@ -107,11 +115,11 @@ def process_packets(packets):
                 break
             continue
 
-        if not packet.haslayer(DNSQR):
+        if not packet.haslayer(sc.DNSQR):
             continue
 
         total_packets += 1
-        query = packet.getlayer(DNSQR)
+        query = packet.getlayer(sc.DNSQR)
         query_str = query.get_field('qname').i2repr(query, query.qname)[1:-2]
         leaked_set.update([query_str])
 
@@ -122,7 +130,6 @@ def process_packets(packets):
 def main():
 
     capture_interface = 'en0'
-    output_file = sys.argv[1]+'captured_dns.pcap'
 
     packets = Queue()
 
@@ -139,6 +146,7 @@ def main():
     requester.start()
 
     process_packets(packets)
+
 
 if __name__ == '__main__':
     main()

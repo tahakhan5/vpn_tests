@@ -1,15 +1,13 @@
-"""TODO: Change me!"""
+"""This file is used to infer RTTs to hosts based on simple TCP traffic."""
 
 from __future__ import print_function
 
 import logging
 import os
-import random
 import subprocess
 import signal
 import sys
 import tempfile
-import threading
 import time
 
 from collections import defaultdict
@@ -61,7 +59,6 @@ def _stop_capture(p):
         logger.error("Couldn't kill tcpdump!")
 
 
-
 def _measure_rtts(pkt_file, targets):
     pending = {}
 
@@ -106,7 +103,7 @@ def _send_syn(target):
     # We timeout immediately because frankly we don't care about the request.
     try:
         requests.get("https://" + target, stream=True, timeout=.1)
-    except:
+    except Exception:
         pass
 
 

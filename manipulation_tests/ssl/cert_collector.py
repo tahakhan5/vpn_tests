@@ -1,6 +1,11 @@
-import sys, ssl, socket, json
+import json
+import os.path
+import socket
+import ssl
+import sys
 
 # Dump the SSL ssl certificates of the websites in
+
 
 def get_x509(hostname):
     ctx = ssl.create_default_context()
@@ -10,10 +15,11 @@ def get_x509(hostname):
     data = {hostname: x509}
     return data
 
+
 def main():
 
     results_dir = sys.argv[1]
-    out_file = open(results_dir+"ssl_certs.json", 'w')
+    out_file = open(os.path.join(results_dir, "ssl_certs.json"), 'w')
     with open('hosts.txt') as f:
         for line in f:
             sys.stdout.flush()
@@ -22,10 +28,11 @@ def main():
                 data = get_x509(host)
                 json.dump(data, out_file)
                 out_file.write("\n")
-                print("SUCCESS Collecting Cert for: "+host)
-            except:
-                print("ERROR Collecting Cert for: "+host)
+                print("SUCCESS Collecting Cert for:", host)
+            except Exception:
+                print("ERROR Collecting Cert for:", host)
                 continue
+
 
 if __name__ == "__main__":
     main()

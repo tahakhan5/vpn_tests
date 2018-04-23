@@ -33,6 +33,9 @@ def get_args():
     parser.add_argument(
         'script',
         help="Path to script to run on each. Passed {vpn} and {endpoint}.")
+    parser.add_argument(
+        'post_script', nargs='?',
+        help="Path to script to run AFTER each endpoint. Same args as script.")
     return parser.parse_args()
 
 
@@ -64,6 +67,8 @@ def main():
     config_path = os.path.dirname(args.crt_file)
 
     script_path = os.path.abspath(args.script)
+    postscript_path = os.path.abspath(
+        args.post_script) if args.post_script else None
 
     for config_file in glob.glob(os.path.join(args.indir, "*.ovpn")):
         config_name = os.path.basename(config_file)[:-5].replace(" ", "_")
@@ -91,6 +96,15 @@ def main():
 
         vpn.stop()
         logger.debug("VPN stopped!")
+
+        if postscript_path:
+            logger.info("Calling post-script.")
+            result = subprocess.call([postscript_path, vpn_name, config_name])
+            logger.info("Returned from post-script.")
+
+            if result:
+                logger.error("Result failed on postscript call %s w/%d",
+                             config_name, result)
 
 
 if __name__ == "__main__":

@@ -48,3 +48,82 @@ error_exit() {
 clean_str() {
     tr '[:upper:]' '[:lower:]'| sed -e "s/ /_/g" -e "s/[^a-z_]//g"
 }
+
+get_external_ip() {
+    curl -sS https://ipv4.projekts.xyz
+}
+
+COLOR_NONE=-1
+COLOR_BLACK=0
+COLOR_RED=1
+COLOR_GREEN=2
+COLOR_YELLOW=3
+COLOR_BLUE=4
+COLOR_MAGENTA=5
+COLOR_CYAN=6
+COLOR_WHITE=7
+
+colorize() {
+    tput setaf $1
+    shift
+    printf "$@\n"
+    tput sgr0
+}
+
+pause() {
+    tput bold
+    tput setaf $COLOR_CYAN
+    read -s -p "$@ Press any key when ready." -n 1 result
+    echo ""
+    tput sgr0
+}
+
+confirm() {
+    tput bold
+    tput setaf $COLOR_CYAN
+    result=
+    while [[ "$result" != 'y' && "$result" != 'n' ]]; do
+        read -p "? $@ [y/n]: " result
+    done
+    tput sgr0
+    [[ "$result" == "y" ]] && return 0 || return 1
+}
+
+print_bar() {
+    char=${1-#}
+    width=${2-80}
+    bar=$(printf "%-${width}s" " ")
+    echo "${bar// /$char}"
+}
+
+color_box() {
+    color=$1
+    char=$2
+    shift 2
+
+    tput bold
+    [[ "$color" == $COLOR_NONE ]] || tput setaf $color
+
+    print_bar "$char"
+    printf "$char %-76s $char\n" "$*"
+    print_bar "$char"
+
+    tput sgr0
+}
+
+error() {
+    color_box $COLOR_RED "#" $*
+}
+
+warning() {
+    color_box $COLOR_YELLOW "#" $*
+}
+
+alert() {
+    color_box $COLOR_MAGENTA "#" $*
+}
+
+info() {
+    tput bold
+    colorize $COLOR_CYAN "# $*"
+}

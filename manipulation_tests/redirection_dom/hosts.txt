@@ -1,5 +1,6 @@
-basic.scoobysnack.stream
-scoobysnack.stream
+# Lines that start with * will have NO timeout
+*basic.scoobysnack.stream
+*scoobysnack.stream
 1688.com
 360.cn
 4chan.org

@@ -14,8 +14,11 @@ from selenium.webdriver.common.by import By
 #        exception that causes a return to main. That means that it doesn't
 #        write any partial results that may be available.
 
+# How long to wait for a page to finish loading
+DEFAULT_TIMEOUT_S = 10
 
-def get_redirects_and_dom(results_dir, host):
+
+def get_redirects_and_dom(results_dir, host, timeout=None):
     # A file used throughout to to write redirect info to.
     # We can try to parse this later, but it's easy to do it now
     redirect_file_name = os.path.join(results_dir, "redirects.csv")
@@ -38,7 +41,8 @@ def get_redirects_and_dom(results_dir, host):
     driver = webdriver.Chrome('./chromedriver', desired_capabilities=caps)
 
     driver.set_window_size(1920, 1500)
-    driver.set_page_load_timeout(10)
+    if timeout is not None:
+        driver.set_page_load_timeout(timeout)
     driver.delete_all_cookies()
 
     # make a request to that domain
@@ -46,7 +50,7 @@ def get_redirects_and_dom(results_dir, host):
         driver.get("http://" + host)
     except TimeoutException:
         print("TIMEOUT on", host)
-        return
+        save_redirect_data("timeout", "?", "?", "?", "?")
 
     time.sleep(0.25)
 
@@ -61,6 +65,7 @@ def get_redirects_and_dom(results_dir, host):
     #save final URL
     with open(os.path.join(results_dir, "final_urls.txt"), 'w') as final_url:
         final_url.write(str(driver.current_url))
+        save_redirect_data("final", "?", "?", "?", driver.current_url)
 
     # save body text
     text = driver.find_elements(By.XPATH, '//body')[0].text
@@ -83,8 +88,8 @@ def get_redirects_and_dom(results_dir, host):
 
             typ = params['type']
             loc = params['request']['url']
-            frameId = params['frameId']
-            reason = params['initiator']['type']
+            frameId = params.get('frameId')
+            reason = params.get('initiator', dict()).get('type', "UNKNOWN")
             operation = 'load'
 
             if 'redirectResponse' in params:
@@ -149,23 +154,6 @@ def get_redirects_and_dom(results_dir, host):
         for x in range(0, len(redirect_chain)):
             outfile.write("{},{}\n".format(redirect_chain[x], type_chain[x]))
 
-    # Header-based redirects are shown within the other logs for those
-    # motivated to find them :-P
-    #redir_history = []
-    #redir_codes = []
-    #r = requests.get("http://"+host)
-
-    #for x in r.history:
-    #    redir_history.append(x.url)
-    #    redir_codes.append(x.status_code)
-    #redir_history.append(r.url)
-    #redir_codes.append(r.status_code)
-
-    #with open(
-    #        os.path.join(results_dir, "header_redirs.txt"), 'w') as outfile:
-    #    for x in range(0, len(redir_history)):
-    #        outfile.write(str(redir_history[x])+","+str(redir_codes[x])+"\n")
-
 
 def main():
 
@@ -174,12 +162,17 @@ def main():
 
     with open("hosts.txt") as f:
         for line in f:
-            if line.startswith("#"):
+            if line.lstrip().startswith("#"):
                 continue
             web_hosts.append(line.strip("\n").strip(" "))
 
     for i, host in enumerate(web_hosts):
         print("Processing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
+
+        timeout = DEFAULT_TIMEOUT_S
+        if host.startswith("*"):
+            timeout = None
+            host = timeout[1:]
 
         # Using this allows us to have 'hosts' that are actually full paths,
         # which is useful for testing if nothing else.
@@ -189,7 +182,7 @@ def main():
             os.makedirs(os.path.join(host_dir, d), exist_ok=True)
 
         try:
-            get_redirects_and_dom(host_dir, host)
+            get_redirects_and_dom(host_dir, host, timeout)
         except Exception as e:
             print("ERROR while collecting data for:", host)
             traceback.print_exc()

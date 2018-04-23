@@ -80,9 +80,7 @@ read -p "ARE YOU SURE THE VPN CONNECTION ESTSABLISHED? [Y/N]: "
 printf "************************************************************************\n"
 
 
-# run tcp dump instance which collects the complete trace of VPN service
-DUMP_FILE=_dump_complete.pcap
-tcpdump -U -i en0 -s 65535 -w $TRACES_DIR$TAG$DUMP_FILE & export COMPLETE_DUMP_PID=$!
+# We no longer capture an overall pcap because it doubles our result's size.
 
 # save  ifconfig and dns config files after the VPN has been connected
 #
@@ -282,25 +280,15 @@ run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
 
 ################################################################################
 
-echo "-------------------------------------------------------------------------"
-echo "KILLING CAPTURES"
-echo "-------------------------------------------------------------------------"
+color_box $COLOR_CYAN "*" "DISCONNECT FROM THE VPN"
+pause "Disconnected?"
+while [[ "$EXTERNAL_VPN_IP" == $(get_external_ip) ]]; do
+    error "Your IP is still the same as on the VPN."
+    confirm "Continue anyway?" && break
+done
 
-# Kill the process which is collecting the complete dump
-kill -s TERM $COMPLETE_DUMP_PID
-
-wait
-
-echo "-------------------------------------------------------------------------"
-echo "Waiting for internet to recover."
-
-wait_until_connected
-
-echo -e "\nTransferring results"
-echo "-------------------------------------------------------------------------"
+info "Transferring results"
 
 transfer_file $TAG $RESULTS_DIR
 
-echo "************************************************************************"
-echo "TESTS COMPLETED."
-echo "************************************************************************"
+alert "TESTS COMPLETED."

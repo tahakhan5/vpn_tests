@@ -76,10 +76,7 @@ echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
 #ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_default"
 #cat /etc/resolv.conf > $CONFIG_DIR$TAG"_resolv_default"
 
-# run tcp dump instance which collects the complete trace of VPN service
-DUMP_FILE=_dump_complete.pcap
-tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$TAG$DUMP_FILE &
-export COMPLETE_DUMP_PID=$!
+# We no longer capture an overall pcap because it doubles our result's size.
 
 # save  ifconfig and dns config files after the VPN has been connected
 #
@@ -181,26 +178,4 @@ run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
 
 ################################################################################
 
-echo "-------------------------------------------------------------------------"
-echo "KILLING CAPTURES"
-echo "-------------------------------------------------------------------------"
-
-# Kill the process which is collecting the complete dump
-#kill -9 $COMPLETE_DUMP_PID
-kill -s TERM $COMPLETE_DUMP_PID
-
-wait
-
-echo "-------------------------------------------------------------------------"
-echo "Waiting for internet to recover."
-
-wait_until_connected
-
-echo -e "\nTransferring results"
-echo "-------------------------------------------------------------------------"
-
-transfer_file $TAG $RESULTS_DIR
-
-echo "************************************************************************"
-echo "TESTS COMPLETED."
-echo "************************************************************************"
+alert "TESTS COMPLETE"

@@ -5,6 +5,8 @@ import sys
 import time
 import traceback
 
+from concurrent.futures import ThreadPoolExecutor
+
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException
@@ -15,7 +17,7 @@ from selenium.webdriver.common.by import By
 #        write any partial results that may be available.
 
 # How long to wait for a page to finish loading
-DEFAULT_TIMEOUT_S = 10
+DEFAULT_TIMEOUT_S = 20
 
 
 def get_redirects_and_dom(results_dir, host, timeout=None):
@@ -155,6 +157,29 @@ def get_redirects_and_dom(results_dir, host, timeout=None):
             outfile.write("{},{}\n".format(redirect_chain[x], type_chain[x]))
 
 
+def fetch_wrapper(host, results_dir):
+    print("Processing", host)
+
+    timeout = DEFAULT_TIMEOUT_S
+    if host.startswith("*"):
+        timeout = None
+        host = host[1:]
+
+    # Using this allows us to have 'hosts' that are actually full paths,
+    # which is useful for testing if nothing else.
+    filehost = host.replace("/", "_").replace(" ", "_")
+    host_dir = os.path.join(results_dir, filehost)
+    for d in ["screenshots", "DOM", "final_urls", "redirects", "keys"]:
+        os.makedirs(os.path.join(host_dir, d), exist_ok=True)
+
+    try:
+        get_redirects_and_dom(host_dir, host, timeout)
+    except Exception as e:
+        print("ERROR while collecting data for:", host)
+        traceback.print_exc()
+    sys.stdout.flush()
+
+
 def main():
 
     results_dir = sys.argv[1]
@@ -166,27 +191,11 @@ def main():
                 continue
             web_hosts.append(line.strip("\n").strip(" "))
 
-    for i, host in enumerate(web_hosts):
-        print("Processing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
-
-        timeout = DEFAULT_TIMEOUT_S
-        if host.startswith("*"):
-            timeout = None
-            host = timeout[1:]
-
-        # Using this allows us to have 'hosts' that are actually full paths,
-        # which is useful for testing if nothing else.
-        filehost = host.replace("/", "_").replace(" ", "_")
-        host_dir = os.path.join(results_dir, filehost)
-        for d in ["screenshots", "DOM", "final_urls", "redirects", "keys"]:
-            os.makedirs(os.path.join(host_dir, d), exist_ok=True)
-
-        try:
-            get_redirects_and_dom(host_dir, host, timeout)
-        except Exception as e:
-            print("ERROR while collecting data for:", host)
-            traceback.print_exc()
-        sys.stdout.flush()
+    with ThreadPoolExecutor(max_workers=3) as e:
+        for i, host in enumerate(web_hosts):
+            print("Queueing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
+            sys.stdout.flush()
+            e.submit(fetch_wrapper, host, results_dir)
 
 
 if __name__ == "__main__":

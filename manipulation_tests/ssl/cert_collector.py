@@ -3,8 +3,11 @@ import os.path
 import socket
 import ssl
 import sys
+import traceback
 
 # Dump the SSL ssl certificates of the websites in
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def get_x509(hostname):
@@ -16,22 +19,38 @@ def get_x509(hostname):
     return data
 
 
+def try_fetch(host):
+    data = None
+    try:
+        data = get_x509(host)
+    except Exception as e:
+        print("ERROR Collecting Cert for:", host)
+        traceback.print_exc()
+    sys.stdout.flush()
+    return host, data
+
+
 def main():
 
     results_dir = sys.argv[1]
     out_file = open(os.path.join(results_dir, "ssl_certs.json"), 'w')
+    futures = []
     with open('hosts.txt') as f:
-        for line in f:
-            sys.stdout.flush()
-            try:
+        with ThreadPoolExecutor(max_workers=10) as e:
+            n_hosts = 0
+            for line in f:
+                n_hosts += 1
                 host = line.strip("\n")
-                data = get_x509(host)
+                futures.append(e.submit(try_fetch, host))
+
+            for i, future in enumerate(as_completed(futures)):
+                host, data = future.result()
+                if not data:
+                    continue
+                print("SUCCESS Collecting Cert for:", host,
+                      " [{}/{}]".format(i + 1, n_hosts))
                 json.dump(data, out_file)
                 out_file.write("\n")
-                print("SUCCESS Collecting Cert for:", host)
-            except Exception:
-                print("ERROR Collecting Cert for:", host)
-                continue
 
 
 if __name__ == "__main__":

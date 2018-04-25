@@ -50,9 +50,7 @@ cnet.com
 cnn.com
 coinmarketcap.com
 colopro.jp
-curriculumtrak.com
 darkorbit.es
-delta.com
 deviantart.com
 discordapp.com
 dropbox.com
@@ -70,7 +68,6 @@ flashscore.com
 flipkart.com
 flirt4free.com
 forbes.com
-force.com
 gizmodo.com
 globerland.com
 gmail.com
@@ -89,8 +86,6 @@ hsbc.co.uk
 huffingtonpost.com
 humblebundle.com
 ibizamode.nl
-ieee.org
-ikea.com
 imdb.com
 imgur.com
 indeed.com
@@ -101,7 +96,6 @@ instantssl.com
 intuit.com
 investopedia.com
 irs.gov
-justlastseason.co.uk
 jw.org
 kayak.com
 khanacademy.org

@@ -53,40 +53,40 @@ def make_requests(domains, ip_addrs):
 
     # execute simple queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_basic + domain),
-                                stdout=subprocess.PIPE)
+        subprocess.Popen(shlex.split(query_basic + domain),
+                         stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
     print('Default DNS queries completed')
 
     # execute google dns queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_google_dns + domain),
-                                stdout=subprocess.PIPE)
+        subprocess.Popen(shlex.split(query_google_dns + domain),
+                         stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
     print('Google DNS queries completed')
 
     # execute dig ANY queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_any + domain),
-                                stdout=subprocess.PIPE)
+        subprocess.Popen(shlex.split(query_any + domain),
+                         stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
     print('ANY queries completed')
 
     # execute dig v6 queries
     for domain in domains:
-        proc = subprocess.Popen(shlex.split(query_v6 + domain),
-                                stdout=subprocess.PIPE)
+        subprocess.Popen(shlex.split(query_v6 + domain),
+                         stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
     print('DNS V6  only queries completed')
 
     #  dig reverse query
     for ip_addr in ip_addrs:
-        proc = subprocess.Popen(shlex.split(reverse_query + ip_addr),
-                                stdout=subprocess.PIPE)
+        subprocess.Popen(shlex.split(reverse_query + ip_addr),
+                         stdout=subprocess.PIPE)
         time.sleep(SLEEP_TIME)
 
     print('reverse DNS queries completed')

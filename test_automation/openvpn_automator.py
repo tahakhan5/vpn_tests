@@ -13,6 +13,7 @@ logger = logging.getLogger("vpn_loop")
 LOG_FORMAT = (
     "%(asctime)s %(levelname)-7s %(name)-12s %(funcName)-14s %(message)s")
 
+UP_DOWN_SCRIPT = "update-resolv-conf"
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -70,13 +71,17 @@ def main():
     postscript_path = os.path.abspath(
         args.post_script) if args.post_script else None
 
+    up_down_script = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), UP_DOWN_SCRIPT))
+
     for config_file in glob.glob(os.path.join(args.indir, "*.ovpn")):
         config_name = os.path.basename(config_file)[:-5].replace(" ", "_")
         config_file = os.path.abspath(config_file)
 
         vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file,
                               config_file=config_file, crt_file=crt_file,
-                              path=args.openvpn_path, cwd=config_path)
+                              path=args.openvpn_path, cwd=config_path,
+                              up_down_script=up_down_script)
         logger.info("Processing config: %s", config_file)
         vpn.start()
 

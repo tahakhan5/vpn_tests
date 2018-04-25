@@ -10,12 +10,10 @@ run_test() {
     mkdir -p $test_dir
 
     # Run the test specific capture
-    DUMP_FILE=_${test_tag}.pcap
-    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$TAG$DUMP_FILE &
+    DUMP_FILE=${test_tag}.pcap
+    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$DUMP_FILE &
     export REDIR_COLL_PID=$!
-    echo "-------------------------------------------------------------------------"
-    echo "RUNNING $test_desc TESTS"
-    echo "-------------------------------------------------------------------------"
+    info "RUNNING $test_desc TESTS"
 
     # Actually run the test
     $test_func $test_dir
@@ -23,9 +21,7 @@ run_test() {
     # Kill the test specific capture
     kill -s TERM $REDIR_COLL_PID
     wait $REDIR_COLL_PID
-    echo "-------------------------------------------------------------------------"
-    echo "TEST $test_desc COMPLETE"
-    echo "-------------------------------------------------------------------------"
+    info "TEST $test_desc COMPLETE"
 }
 
 # Blocks until we can access google
@@ -121,6 +117,10 @@ warning() {
 
 alert() {
     color_box $COLOR_MAGENTA "#" $*
+}
+
+info_box() {
+    color_box $COLOR_CYAN "#" $*
 }
 
 info() {

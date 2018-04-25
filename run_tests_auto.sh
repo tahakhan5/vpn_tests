@@ -33,7 +33,6 @@ ROOT=$(pwd)
 popd >/dev/null
 ###
 
-rm -rf $ROOT/*_results/
 source $ROOT/venv/bin/activate
 
 # Functions for uploading results and retrieving API keys.
@@ -60,6 +59,11 @@ COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
 # create respective directories for results
 RESULTS_DIR=$DEFAULT_DIR/$TAG"_results/"
 mkdir -p $RESULTS_DIR
+
+# Yeah, I dunno what happened here, but I know I'm really hesitant to rm -rf
+# anything using root's user. Shame if $RESULTS_DIR were to be unset for some
+# reason...
+#rm -rf $RESULTS_DIR/*
 
 CONFIG_DIR=$RESULTS_DIR/configs
 mkdir -p $CONFIG_DIR
@@ -95,7 +99,7 @@ echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 
 test_dns_leakage() {
     pushd ./leakage_tests/dns/ > /dev/null
-    python3 dns_leak_test.py $1 | tee $1/dns_leak_log
+    python3 -u dns_leak_test.py $1 | tee $1/dns_leak_log
     popd > /dev/null
 }
 
@@ -133,8 +137,16 @@ test_dom_redirection() {
     popd > /dev/null
 }
 
+test_ssl_collection() {
+    pushd ./manipulation_tests/ssl/ > /dev/null
+    python3 cert_collector.py $1 | tee $1/ssl_collector_log
+    popd > /dev/null
+}
+
 test_backconnect() {
-    ./backconnect/backconnect -o $1
+    # We disable IPv6 for time.
+    # Raw openvpn won't protect you against IPv6 leakage anyway.
+    ./backconnect/backconnect -6 -o $1
 }
 
 test_infra_infer() {
@@ -163,24 +175,39 @@ test_recursive_dns_origin() {
 
 # Run the tests we want, while capturing pcaps and giving feedback to the user
 
-info "Executing leakage tests"
-run_test test_dns_leakage dns_leak "DNS LEAKAGE TEST"
+info "Disabling IPv6 for the duration of the test."
+networksetup -setv6off Ethernet
+
+info_box "Executing leakage tests"
 run_test test_webrtc_leak rtc_leak "WEBRTC LEAK"
-run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"
 
-info "Executing manipulation tests"
+info_box "Executing manipulation tests"
 run_test test_dns_manipulation dns_manipulation "DNS MANIPULATION"
-run_test test_dom_redirection dom_redirection "DOM & REDIRECTION"
+time run_test test_dom_redirection dom_redirection "DOM & REDIRECTION"
+time run_test test_ssl_collection ssl_collection "SSL"
 
-info "Executing infrastructure tests"
+info_box "Executing infrastructure tests"
 run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"
 run_test test_backconnect backconnect "BACKCONNECT"
 run_test test_infra_infer infrastructure_inference "INFRASTRUCTURE INFERENCE"
 
-# Keep these tests last
+## Keep these tests last
+info_box "Executing final tests"
 run_test test_netalyzr netalyzr "NETALYZR"
+
+# These stay disabled
+# OpenVPN WILL leak DNS and IPv6 unless you work around it.
+#run_test test_dns_leakage dns_leak "DNS LEAKAGE TEST"
+#run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"  # OpenVPN WILL leak
+
+# Tunnel failure is just a pain in the butt in our case.
 #run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
 
 ################################################################################
 
-alert "TESTS COMPLETE"
+info "Re-enabling IPv6."
+networksetup -setv6automatic Ethernet
+info "Waiting a bit for IPv6 recovery."
+sleep 5
+
+info "TESTS COMPLETE"

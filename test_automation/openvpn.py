@@ -14,7 +14,7 @@ logger = logging.getLogger("openvpn")
 class OpenVPN(object):
     def __init__(self,
                  config_file=None, auth_file=None, crt_file=None, timeout=60,
-                 path='openvpn', cwd=None):
+                 path='openvpn', cwd=None, up_down_script=None):
         self.started = False
         self.stopped = False
         self.error = False
@@ -27,20 +27,19 @@ class OpenVPN(object):
         self.thread.setDaemon(1)
         self.timeout = timeout
         self.cwd = cwd
+        self.up_down_script = up_down_script
 
     def _invoke_openvpn(self):
-        if self.auth_file is None:
-            cmd = ['sudo', self.path, '--script-security', '2',
-                   '--config', self.config_file]
-        elif self.crt_file is None:
-            cmd = ['sudo', self.path, '--script-security', '2',
-                   '--config', self.config_file,
-                   '--auth-user-pass', self.auth_file]
-        else:
-            cmd = ['sudo', self.path, '--script-security', '2',
-                   '--config', self.config_file,
-                   '--auth-user-pass', self.auth_file,
-                   '--ca', self.crt_file]
+        cmd = ['sudo', self.path, '--script-security', '2',
+               '--config', self.config_file]
+
+        if self.crt_file is not None:
+            cmd += ['--ca', self.crt_file]
+        if self.auth_file is not None:
+            cmd += ['--auth-user-pass', self.auth_file]
+        if self.up_down_script:
+            cmd += ["--up", self.up_down_script, "--down", self.up_down_script]
+
         self.process = subprocess.Popen(cmd,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,

@@ -37,7 +37,6 @@ ROOT=$(pwd)
 popd >/dev/null
 ###
 
-rm -rf $ROOT/*_results/
 source $ROOT/venv/bin/activate
 
 # Functions for uploading results and retrieving API keys.

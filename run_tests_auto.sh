@@ -39,6 +39,8 @@ source $ROOT/venv/bin/activate
 source $ROOT/includes/transfer_func.sh
 # Additional helper functions for cleanly running tests.
 source $ROOT/includes/helper_funcs.sh
+# Test functions
+source $ROOT/includes/test_funcs.sh
 
 DEFAULT_DIR=`pwd`
 
@@ -97,111 +99,34 @@ echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 
 ##############################################################################
 
-test_dns_leakage() {
-    pushd ./leakage_tests/dns/ > /dev/null
-    python3 -u dns_leak_test.py $1 | tee $1/dns_leak_log
-    popd > /dev/null
-}
-
-test_webrtc_leak() {
-    pushd ./leakage_tests/webrtc/ > /dev/null
-
-    unzip -q ChromeProfile.zip
-
-    python3 -m http.server 8080 &
-    export HTTP_SERVER_PID=$!
-
-    python3 webrtc_leak.py $1 | tee $1/rtc_leak_log
-    kill -s TERM $HTTP_SERVER_PID
-
-    rm -rf ChromeProfile
-
-    popd > /dev/null
-}
-
-test_dns_manipulation() {
-    pushd ./manipulation_tests/dns/ > /dev/null
-    ./checkdns.sh > $1/dns_manipulation_log
-    popd > /dev/null
-}
-
-test_netalyzr() {
-    pushd ./manipulation_tests/netalyzr/ > /dev/null
-    python3 run_netalyzr.py $1
-    popd > /dev/null
-}
-
-test_dom_redirection() {
-    pushd ./manipulation_tests/redirection_dom/ > /dev/null
-    python3 get_redirects_dom.py $1 | tee $1/redirection_dom_log
-    popd > /dev/null
-}
-
-test_ssl_collection() {
-    pushd ./manipulation_tests/ssl/ > /dev/null
-    python3 cert_collector.py $1 | tee $1/ssl_collector_log
-    popd > /dev/null
-}
-
-test_backconnect() {
-    # We disable IPv6 for time.
-    # Raw openvpn won't protect you against IPv6 leakage anyway.
-    ./backconnect/backconnect -6 -o $1
-}
-
-test_infra_infer() {
-    [[ -e ./infrastructure_inference/creds.json ]] || fetch_creds
-
-    ./infrastructure_inference/run_tests \
-        -o $1 infrastructure_inference/creds.json
-}
-
-test_ipv6_leakage() {
-    python3 ./leakage_tests/ipv6/ipv6_leak.py \
-        -r leakage_tests/ipv6/v6_resolutions.csv $1
-}
-
-test_tunnel_failure() {
-    pushd ./leakage_tests/tunnel_failure/ > /dev/null
-    python3 run_test.py -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
-    popd > /dev/null
-}
-
-test_recursive_dns_origin() {
-    datestamp=$(date '+%y%m%d-%H%M%S')
-    dig cvst-$datestamp-${TAG//_/-}.homezone-project.eu > $1/lookup.out
-}
-
-
 # Run the tests we want, while capturing pcaps and giving feedback to the user
 
 info "Disabling IPv6 for the duration of the test."
 networksetup -setv6off Ethernet
 
 info_box "Executing leakage tests"
-run_test test_webrtc_leak rtc_leak "WEBRTC LEAK"
+run_test test_webrtc_leak rtc_leak ./leakage_tests/webrtc/
 
 info_box "Executing manipulation tests"
-run_test test_dns_manipulation dns_manipulation "DNS MANIPULATION"
-time run_test test_dom_redirection dom_redirection "DOM & REDIRECTION"
-time run_test test_ssl_collection ssl_collection "SSL"
+run_test test_dns_manipulation dns_manipulation ./manipulation_tests/dns/
+run_test test_dom_redirection dom_redirection ./manipulation_tests/redirection_dom/
+run_test test_ssl_collection ssl_collection ./manipulation_tests/ssl/
 
 info_box "Executing infrastructure tests"
-run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"
-run_test test_backconnect backconnect "BACKCONNECT"
-run_test test_infra_infer infrastructure_inference "INFRASTRUCTURE INFERENCE"
+run_test test_recursive_dns_origin recursive_dns_origin
+run_test test_backconnect_nov6 backconnect
+run_test test_infra_infer infrastructure_inference
 
 ## Keep these tests last
 info_box "Executing final tests"
-run_test test_netalyzr netalyzr "NETALYZR"
+run_test test_netalyzr netalyzr ./manipulation_tests/netalyzr/
 
 # These stay disabled
 # OpenVPN WILL leak DNS and IPv6 unless you work around it.
-#run_test test_dns_leakage dns_leak "DNS LEAKAGE TEST"
-#run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"  # OpenVPN WILL leak
-
-# Tunnel failure is just a pain in the butt in our case.
-#run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
+#run_test test_dns_leakage dns_leak
+#run_test test_ipv6_leakage ipv6_leakage  # OpenVPN WILL leak
+# Tunnel failure isn't interesting when you control the tunnel.
+#run_test test_tunnel_failure tunnel_failure
 
 ################################################################################
 

@@ -4,7 +4,7 @@
 run_test() {
     test_func=$1    # Function to call to do the actual test
     test_tag=$2     # Friendly name/tag for this *test*
-    test_desc=$3    # A name/description of this test for humans
+    ch_dir=$3       # Optional directory to change in to before test
 
     test_dir=$RESULTS_DIR/$test_tag
     mkdir -p $test_dir
@@ -13,15 +13,19 @@ run_test() {
     DUMP_FILE=${test_tag}.pcap
     tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$DUMP_FILE &
     export REDIR_COLL_PID=$!
-    info "RUNNING $test_desc TESTS"
+    info "Running $test_tag tests"
 
     # Actually run the test
-    $test_func $test_dir
+    [[ "$ch_dir" ]] && pushd $ch_dir > /dev/null
+    time $test_func $test_dir \
+        > >(tee -a $test_dir/std.out) \
+        2> >(tee -a $test_dir/std.err >&2)
+    [[ "$ch_dir" ]] && popd > /dev/null
 
     # Kill the test specific capture
     kill -s TERM $REDIR_COLL_PID
     wait $REDIR_COLL_PID
-    info "TEST $test_desc COMPLETE"
+    info "Test $test_tag complete"
 }
 
 # Blocks until we can access google

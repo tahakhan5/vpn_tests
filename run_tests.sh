@@ -18,6 +18,8 @@ source $ROOT/venv/bin/activate
 source $ROOT/includes/transfer_func.sh
 # Additional helper functions for cleanly running tests.
 source $ROOT/includes/helper_funcs.sh
+# Test functions
+source $ROOT/includes/test_funcs.sh
 
 DEFAULT_DIR=`pwd`
 DEFAULT_DIR=$DEFAULT_DIR"/"
@@ -114,7 +116,9 @@ echo "01. DNS LEAKAGE TEST"
 echo "-------------------------------------------------------------------------"
 
 cd ./leakage_tests/dns/
-python3 dns_leak_test.py $DNS_LEAK_DIR | tee $DNS_LEAK_DIR"dns_leak_log"
+python3 dns_leak_test.py $DNS_LEAK_DIR \
+    > >(tee -a ${DNS_LEAK_DIR}std.out) \
+    2> >(tee -a ${DNS_LEAK_DIR}std.err >&2)
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -142,7 +146,9 @@ cd ./leakage_tests/webrtc/
 unzip -q ChromeProfile.zip
 python3 -m http.server 8080 & export HTTP_SERVER_PID=$!
 
-python3 webrtc_leak.py $RTC_LEAK_DIR | tee $RTC_LEAK_DIR"rtc_leak_log"
+python3 webrtc_leak.py $RTC_LEAK_DIR \
+    > >(tee -a ${RTC_LEAK_DIR}std.out) \
+    2> >(tee -a ${RTC_LEAK_DIR}std.err >&2)
 rm -rf ChromeProfile/
 
 cd $DEFAULT_DIR
@@ -174,7 +180,9 @@ echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/dns/
 
-./checkdns.sh > $DNS_MANIP_DIR"dns_manipulation_log"
+./checkdns.sh \
+    > >(tee -a ${DNS_MANIP_DIR}std.out) \
+    2> >(tee -a ${DNS_MANIP_DIR}std.err >&2)
 
 cd $DEFAULT_DIR
 
@@ -201,7 +209,9 @@ echo "06. RUNNING REDIRECTION AND DOM COLLECTION TESTS"
 echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/redirection_dom/
-python3 get_redirects_dom.py $REDIR_TEST_DIR | tee $REDIR_TEST_DIR"redirection_dom_log"
+python3 get_redirects_dom.py $REDIR_TEST_DIR \
+    > >(tee -a ${REDIR_TEST_DIR}std.out) \
+    2> >(tee -a ${REDIR_TEST_DIR}std.err >&2)
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -225,7 +235,9 @@ echo "06. RUNNING SSL COLLECTION TESTS"
 echo "-------------------------------------------------------------------------"
 
 cd ./manipulation_tests/ssl/
-python cert_collector.py $SSL_TEST_DIR | tee $SSL_TEST_DIR"ssl_log"
+python cert_collector.py $SSL_TEST_DIR \
+    > >(tee -a ${SSL_TEST_DIR}std.out) \
+    2> >(tee -a ${SSL_TEST_DIR}std.err >&2)
 cd $DEFAULT_DIR
 
 # Kill the test specific capture
@@ -241,51 +253,15 @@ echo "-------------------------------------------------------------------------"
 ###################       CONCISE TESTS COLLECTION       #####################
 ##############################################################################
 
-# First, define how to run each of our tests
-
-test_backconnect() {
-    ./backconnect/backconnect -o $1
-}
-
-test_infra_infer() {
-    [[ -e ./infrastructure_inference/creds.json ]] || fetch_creds
-
-    ./infrastructure_inference/run_tests \
-        -o $1 infrastructure_inference/creds.json
-}
-
-test_ipv6_leakage() {
-    python3 ./leakage_tests/ipv6/ipv6_leak.py \
-        -r leakage_tests/ipv6/v6_resolutions.csv $1
-}
-
-test_tunnel_failure() {
-    pushd ./leakage_tests/tunnel_failure/ > /dev/null
-    python3 run_test.py -o $TUNNEL_FAILURE_DIR"tunnel_failure_log"
-    popd > /dev/null
-}
-
-test_recursive_dns_origin() {
-    datestamp=$(date '+%y%m%d-%H%M%S')
-    dig cvst-$datestamp-${TAG//_/-}.homezone-project.eu > $1/lookup.out
-}
-
-test_netalyzr() {
-    pushd ./manipulation_tests/netalyzr/ > /dev/null
-    python3 run_netalyzr.py $NETALYZR_DIR
-    popd > /dev/null
-}
-
-
 # Run the tests we want, while capturing pcaps and giving feedback to the user
-run_test test_recursive_dns_origin recursive_dns_origin "RECURSIVE DNS"
-run_test test_backconnect backconnect "BACKCONNECT"
-run_test test_infra_infer infrastructure_inference "INFRASTRUCTURE INFERENCE"
-run_test test_ipv6_leakage ipv6_leakage "IPv6 LEAKAGE"
+run_test test_recursive_dns_origin recursive_dns_origin
+run_test test_backconnect backconnect
+run_test test_infra_infer infrastructure_inference
+run_test test_ipv6_leakage ipv6_leakage
 
 # These tests should run at the end
-run_test test_netalyzr netalyzr "NETALYZR"
-run_test test_tunnel_failure tunnel_failure "TUNNEL FAILURE"
+run_test test_netalyzr netalyzr "./manipulation_tests/netalyzr"
+run_test test_tun_fail tunnel_failure "./leakage_tests/tunnel_failure/"
 
 
 ################################################################################

@@ -5,7 +5,7 @@ import sys
 import time
 import traceback
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
@@ -17,7 +17,16 @@ from selenium.webdriver.common.by import By
 #        write any partial results that may be available.
 
 # How long to wait for a page to finish loading
-DEFAULT_TIMEOUT_S = 20
+DEFAULT_TIMEOUT_S = 30
+
+# Number of threads to run simultaneously?
+# This makes timeouts go through the roof, though...
+NUM_WORKERS = 3
+
+# These are just used for status updating. I don't protect them with locks
+# because they're just for human feedback.
+n_processed = 0
+n_queued = 0
 
 
 def get_redirects_and_dom(results_dir, host, timeout=None):
@@ -131,9 +140,10 @@ def get_redirects_and_dom(results_dir, host, timeout=None):
     redirect_chain = []
     type_chain = []
 
-    redirect_chain.append(sorted_nr[0]['params']['documentURL'])
-    init_frame_id = sorted_nr[0]['params']['frameId']
-    type_chain.append(None)
+    if sorted_nr:
+        redirect_chain.append(sorted_nr[0]['params']['documentURL'])
+        init_frame_id = sorted_nr[0]['params'].get('frameId')
+        type_chain.append(None)
 
     for x in sorted_nr:
         headers = x['params']['request']['headers']
@@ -158,7 +168,12 @@ def get_redirects_and_dom(results_dir, host, timeout=None):
 
 
 def fetch_wrapper(host, results_dir):
-    print("Processing", host)
+    global n_processed
+
+    n_processed += 1
+
+    print("Processing", "[{}/{}]".format(n_processed, n_queued), host)
+    sys.stdout.flush()
 
     timeout = DEFAULT_TIMEOUT_S
     if host.startswith("*"):
@@ -174,13 +189,20 @@ def fetch_wrapper(host, results_dir):
 
     try:
         get_redirects_and_dom(host_dir, host, timeout)
+    except TimeoutException:
+        print("LATE TIMEOUT on", host)
+        sys.stdout.flush()
+        return host, "TIMEOUT"
     except Exception as e:
         print("ERROR while collecting data for:", host)
+        sys.stdout.flush()
         traceback.print_exc()
-    sys.stdout.flush()
+        return host, str(e)
+    return host, None
 
 
 def main():
+    global n_queued
 
     results_dir = sys.argv[1]
     web_hosts = []
@@ -191,11 +213,29 @@ def main():
                 continue
             web_hosts.append(line.strip("\n").strip(" "))
 
-    with ThreadPoolExecutor(max_workers=3) as e:
+    n_queued = len(web_hosts)
+    futures = []
+
+    n_ok = 0
+    n_error = 0
+
+    with ThreadPoolExecutor(max_workers=NUM_WORKERS) as e:
         for i, host in enumerate(web_hosts):
             print("Queueing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
             sys.stdout.flush()
-            e.submit(fetch_wrapper, host, results_dir)
+            futures.append(e.submit(fetch_wrapper, host, results_dir))
+
+        for i, future in enumerate(as_completed(futures)):
+            host, error = future.result()
+            if not error:
+                n_ok += 1
+            else:
+                n_error += 1
+
+            if error and error != "TIMEOUT":
+                print("Unexpected error on", host, ":", error)
+
+    print("Final result:", n_ok, "successes,", n_error, "failures")
 
 
 if __name__ == "__main__":

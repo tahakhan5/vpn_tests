@@ -23,6 +23,18 @@ def try_fetch(host):
     data = None
     try:
         data = get_x509(host)
+    except TimeoutError as e:
+        print("TIMEOUT Collecting Cert for:", host)
+    except ConnectionRefusedError as e:
+        print("CONN_REFUSED Collecting Cert for:", host)
+    except BrokenPipeError as e:
+        print("BROKEN_PIPE Collecting Cert for:", host)
+    except ConnectionResetError as e:
+        print("CONN_RESET Collecting Cert for:", host)
+    except ssl.CertificateError as e:
+        print("CERT_ERROR Collecting Cert for:", host, e)
+    except ssl.SSLError as e:
+        print("SSL_ERROR Collecting Cert for:", host, e)
     except Exception as e:
         print("ERROR Collecting Cert for:", host)
         traceback.print_exc()

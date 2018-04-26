@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 import logging
-import os
+#import os
 import subprocess
 import signal
 import sys
@@ -15,6 +15,7 @@ from pprint import pprint
 
 import scapy.all as sc
 import requests
+import netifaces
 
 INTERTARGET_TIME_SECONDS = .02
 
@@ -34,8 +35,12 @@ logger = logging.getLogger("synack_rtt")
 
 def _start_capture(pkt_file):
     # Thanks to pktap magic, we can filter to just our app's traffic
-    pid = os.getpid()
-    p = subprocess.Popen(["tcpdump", "-w", pkt_file, "-Q", "pid=" + str(pid)],
+    #pid = os.getpid()
+    #p = subprocess.Popen(["tcpdump", "-w", pkt_file, "-Q", "pid=" + str(pid)],
+    #                     stderr=subprocess.DEVNULL)
+    # This grabs default interface since pktap doesn't seem happy on some VPNs
+    interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+    p = subprocess.Popen(["tcpdump", "-w", pkt_file, "-i", interface],
                          stderr=subprocess.DEVNULL)
     time.sleep(1)
     return p
@@ -66,6 +71,9 @@ def _measure_rtts(pkt_file, targets):
 
     packets = sc.rdpcap(pkt_file)
     for pkt in packets:
+        if sc.IP not in pkt or sc.TCP not in pkt[sc.IP]:
+            continue
+
         ip = pkt[sc.IP]
         tcp = pkt[sc.TCP]
         flags = tcp.flags

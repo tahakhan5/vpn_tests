@@ -4,3 +4,4 @@ requests
 googlemaps
 psutil
 selenium
+netifaces

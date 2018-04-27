@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import os.path
@@ -16,6 +17,8 @@ from selenium.webdriver.common.by import By
 #        exception that causes a return to main. That means that it doesn't
 #        write any partial results that may be available.
 
+DEFAULT_HOSTS_FILE = "hosts.txt"
+
 # How long to wait for a page to finish loading
 DEFAULT_TIMEOUT_S = 30
 
@@ -29,7 +32,7 @@ n_processed = 0
 n_queued = 0
 
 
-def get_redirects_and_dom(results_dir, host, timeout=None):
+def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
     # A file used throughout to to write redirect info to.
     # We can try to parse this later, but it's easy to do it now
     redirect_file_name = os.path.join(results_dir, "redirects.csv")
@@ -58,7 +61,7 @@ def get_redirects_and_dom(results_dir, host, timeout=None):
 
     # make a request to that domain
     try:
-        driver.get("http://" + host)
+        driver.get(scheme + "://" + host)
     except TimeoutException:
         print("TIMEOUT on", host)
         save_redirect_data("timeout", "?", "?", "?", "?")
@@ -167,7 +170,7 @@ def get_redirects_and_dom(results_dir, host, timeout=None):
             outfile.write("{},{}\n".format(redirect_chain[x], type_chain[x]))
 
 
-def fetch_wrapper(host, results_dir):
+def fetch_wrapper(host, results_dir, scheme):
     global n_processed
 
     n_processed += 1
@@ -188,7 +191,7 @@ def fetch_wrapper(host, results_dir):
         os.makedirs(os.path.join(host_dir, d), exist_ok=True)
 
     try:
-        get_redirects_and_dom(host_dir, host, timeout)
+        get_redirects_and_dom(host_dir, host, scheme=scheme, timeout=timeout)
     except TimeoutException:
         print("LATE TIMEOUT on", host)
         sys.stdout.flush()
@@ -201,17 +204,31 @@ def fetch_wrapper(host, results_dir):
     return host, None
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--hosts_file', default=DEFAULT_HOSTS_FILE,
+                        type=argparse.FileType('r'),
+                        help="Alternate hosts.txt filename.")
+    parser.add_argument('-s', '--scheme', default="http",
+                        help="Initial scheme to use for URLs. Only use in "
+                             "special circumstances")
+    parser.add_argument('results_dir',
+                        help="Directory to output results in to.")
+    return parser.parse_args()
+
+
 def main():
     global n_queued
 
-    results_dir = sys.argv[1]
+    args = get_args()
+
+    results_dir = args.results_dir
     web_hosts = []
 
-    with open("hosts.txt") as f:
-        for line in f:
-            if line.lstrip().startswith("#"):
-                continue
-            web_hosts.append(line.strip("\n").strip(" "))
+    for line in args.hosts_file:
+        if line.lstrip().startswith("#"):
+            continue
+        web_hosts.append(line.strip("\n").strip(" "))
 
     n_queued = len(web_hosts)
     futures = []
@@ -223,7 +240,8 @@ def main():
         for i, host in enumerate(web_hosts):
             print("Queueing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
             sys.stdout.flush()
-            futures.append(e.submit(fetch_wrapper, host, results_dir))
+            futures.append(
+                e.submit(fetch_wrapper, host, results_dir, args.scheme))
 
         for i, future in enumerate(as_completed(futures)):
             host, error = future.result()

@@ -88,7 +88,9 @@ def facilitate_serialize(x, history=False):
 def get_asn1(hostname):
     ctx = ssl.SSLContext()
     ctx.set_ciphers("ALL")  # Come one, come all.
-    s = ctx.wrap_socket(socket.socket(), server_hostname=hostname)
+    sock = socket.socket()
+    sock.settimeout(5)
+    s = ctx.wrap_socket(sock, server_hostname=hostname)
     s.connect((hostname, 443))
 
     # binary because otherwise returns empty dict when verification fails
@@ -131,6 +133,8 @@ def get_host_data(host, result):
     # Also record the certificate of the host.
     try:
         result['cert'] = get_asn1(host)
+    except socket.timeout as e:
+        result['cert_error'] = "SOCK_TIMEOUT"
     except TimeoutError as e:
         result['cert_error'] = "TIMEOUT"
     except ConnectionRefusedError as e:

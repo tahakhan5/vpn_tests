@@ -24,7 +24,7 @@ DEFAULT_TIMEOUT_S = 30
 
 # Number of threads to run simultaneously?
 # This makes timeouts go through the roof, though...
-NUM_WORKERS = 3
+NUM_WORKERS = 2
 
 # These are just used for status updating. I don't protect them with locks
 # because they're just for human feedback.
@@ -151,7 +151,7 @@ def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
     for x in sorted_nr:
         headers = x['params']['request']['headers']
         documentURL = x['params']['documentURL']
-        cur_frame_id = x['params']['frameId']
+        cur_frame_id = x['params'].get('frameId')
         redir_type = None
 
         if documentURL not in redirect_chain:
@@ -172,6 +172,10 @@ def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
 
 def fetch_wrapper(host, results_dir, scheme):
     global n_processed
+
+    # Stall a bit so we're no in sync together if we're just getting started.
+    if n_processed < NUM_WORKERS:
+        time.sleep(n_processed * 5)
 
     n_processed += 1
 

@@ -13,6 +13,7 @@ popd >/dev/null
 
 rm -rf $ROOT/*_results/
 source $ROOT/venv/bin/activate
+pip3 -qq install -r $ROOT/requirements.txt
 
 # Functions for uploading results and retrieving API keys.
 source $ROOT/includes/transfer_func.sh
@@ -143,7 +144,7 @@ echo "-------------------------------------------------------------------------"
 # set up http server
 
 cd ./leakage_tests/webrtc/
-unzip -q ChromeProfile.zip
+unzip -o -q ChromeProfile.zip
 python3 -m http.server 8080 & export HTTP_SERVER_PID=$!
 
 python3 webrtc_leak.py $RTC_LEAK_DIR \

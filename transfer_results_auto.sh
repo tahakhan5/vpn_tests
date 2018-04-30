@@ -63,4 +63,5 @@ info "Waiting for internet to recover."
 wait_until_connected
 info "Transferring results"
 transfer_file $TAG $RESULTS_DIR
+rm -r $RESULTS_DIR
 alert "TRANSER COMPLETE"

@@ -4,7 +4,7 @@
 # We use it across run_tests.sh and run_tests_auto.sh
 
 test_webrtc_leak() {
-    unzip -q ChromeProfile.zip
+    unzip -o -q ChromeProfile.zip
 
     python3 -m http.server 8080 &
     export HTTP_SERVER_PID=$!

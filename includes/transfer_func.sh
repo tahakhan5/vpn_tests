@@ -25,6 +25,7 @@ transfer_file() {
     tar czf $tarball $directory
     size=$(stat -f "%z" $tarball)
     cat $tarball | _dropoff_ssh upload $tag $size
+    rm $HOME/.transfer.tar.gz
 }
 
 fetch_creds() {

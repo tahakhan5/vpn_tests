@@ -34,6 +34,7 @@ popd >/dev/null
 ###
 
 source $ROOT/venv/bin/activate
+pip3 -qq install -r $ROOT/requirements.txt
 
 # Functions for uploading results and retrieving API keys.
 source $ROOT/includes/transfer_func.sh

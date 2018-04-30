@@ -1,4 +1,5 @@
 import json
+import os.path
 import subprocess
 import sys
 import time
@@ -84,9 +85,10 @@ def read_pacp_file(pcap_file):
 
 def main():
     global test_completed
-    output_file = sys.argv[1] + 'captured_rtc.pcap'
-    console_ip = sys.argv[1] + 'leaked_ips.json'
-    source_file = sys.argv[1] + 'page_source.html'
+    outdir = sys.argv[1]
+    output_file = os.path.join(outdir, 'captured_rtc.pcap')
+    console_ip = os.path.join(outdir, 'leaked_ips.json')
+    source_file = os.path.join(outdir, 'page_source.html')
 
     capture_interface = 'en0'
     packet_list = []

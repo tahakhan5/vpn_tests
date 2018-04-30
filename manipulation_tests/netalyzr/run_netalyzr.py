@@ -1,3 +1,4 @@
+import os.path
 import sys
 import subprocess
 import requests
@@ -17,7 +18,7 @@ def run_netalyzr():
 def dump_results(url):
     json_link = url.replace("/summary/", "/json/")
     r = requests.get(json_link)
-    output_json = open(sys.argv[1] + "results.json", 'wb')
+    output_json = open(os.path.join(sys.argv[1], "results.json"), 'wb')
     output_json.write(r.content)
     output_json.close()
     return
@@ -25,7 +26,7 @@ def dump_results(url):
 
 def main():
     result_url = run_netalyzr()
-    link_file = open(sys.argv[1] + "results_link.txt", 'w')
+    link_file = open(os.path.join(sys.argv[1], "results_link.txt"), 'w')
     link_file.write(result_url + "\n")
     link_file.close()
     dump_results(result_url)

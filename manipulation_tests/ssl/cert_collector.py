@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 # Dump the SSL ssl certificates of the websites in
 
+from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -64,6 +65,35 @@ LOG_FORMAT = (
 logger = logging.getLogger("ssl")
 
 
+Mode = namedtuple("Mode", ['fetch_cert', 'fetch_http',
+                           'save_body', 'save_json'])
+
+
+def parse_mode(stm):
+    fetch_cert = False
+    fetch_http = False
+    save_body = False
+    save_json = False
+    for c in stm:
+        if c == 'a':
+            fetch_cert = True
+            fetch_http = True
+        elif c == 's':
+            save_body = True
+            fetch_http = True
+        elif c == 'j':
+            save_json = True
+            fetch_http = True
+        elif c == 'c':
+            fetch_cert = True
+        elif c == 'h':
+            fetch_http = True
+        else:
+            raise KeyError("Unknown specifier " + c)
+
+    return Mode(fetch_cert, fetch_http, save_body, save_json)
+
+
 def flatten_cookiejar(jar):
     cookies = []
     for cookie in jar:
@@ -94,6 +124,9 @@ def facilitate_serialize(x, history=False):
 
 
 def get_asn1(hostname, timeout=5):
+    if "/" in hostname:
+        return None
+
     ctx = ssl.SSLContext()
     ctx.set_ciphers("ALL")  # Come one, come all.
     sock = socket.socket()
@@ -113,15 +146,20 @@ def load_asn1(inp):
     return res
 
 
-def get_host_data(host, result):
+def get_host_data(host, result, mode):
     """Look for SSL-based attacks for a host."""
 
     # First, try to do an HTTP request to see if we're downgraded.
     # We use static headers that look like modern chrome.
     try:
-        r = requests.get("http://" + host,
-                         headers=STATIC_HEADERS, timeout=5)
-        result['response'] = facilitate_serialize(r, True)
+        if mode.fetch_http:
+            r = requests.get("http://" + host,
+                             headers=STATIC_HEADERS, timeout=5)
+            result['response'] = facilitate_serialize(r, True)
+            if mode.save_body:
+                result['body'] = r.text
+            if mode.save_json:
+                result['body'] = r.json()
     except requests.exceptions.SSLError as e:
         result['request_error'] = "SSLError"
         #... yes really
@@ -145,7 +183,8 @@ def get_host_data(host, result):
 
     # Also record the certificate of the host.
     try:
-        result['cert'] = get_asn1(host)
+        if mode.fetch_cert:
+            result['cert'] = get_asn1(host)
     except socket.timeout as e:
         result['cert_error'] = "SOCK_TIMEOUT"
     except TimeoutError as e:
@@ -182,10 +221,10 @@ def get_host_data(host, result):
                 result['final_dest_cert_error'] = str(e)
 
 
-def try_fetch(host, attempt=0):
+def try_fetch(host, mode):
     data = {"host": host}
     try:
-        get_host_data(host, data)
+        get_host_data(host, data, mode)
     except Exception as e:
         logger.exception("ERROR Collecting Cert for: %s", host)
         data["error"] = "UNKNOWN_ERROR:" + str(e)
@@ -221,14 +260,15 @@ def main():
             n_hosts = 0
             for line in f:
                 n_hosts += 1
-                host = line.strip("\n")
-                futures.append(e.submit(try_fetch, host))
+                mode, host = line.strip("\n").split(",", maxsplit=1)
+                mode = parse_mode(mode)
+                futures.append(e.submit(try_fetch, host, mode))
 
             for i, future in enumerate(as_completed(futures)):
                 host, data = future.result()
                 if not data:
                     continue
-                logger.info("SUCCESS Collecting Cert for: %s [%d/%d]",
+                logger.info("SUCCESS Collecting data for: %s [%d/%d]",
                             host, i + 1, n_hosts)
                 out_file.write(data)
                 out_file.write("\n")

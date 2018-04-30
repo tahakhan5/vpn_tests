@@ -1,6 +1,6 @@
 # Lines that start with * will have NO timeout
-*basic.scoobysnack.stream
 *scoobysnack.stream
+*basic.scoobysnack.stream
 4chan.org
 alibaba.com
 baidu.com
@@ -49,10 +49,7 @@ repubblica.it
 rutracker.org
 sberbank.ru
 siteadvisor.com
-speedtest.net
 steampowered.com
 taleo.net
 telewebion.com
 thesaurus.com
-wordreference.com
-youdao.com

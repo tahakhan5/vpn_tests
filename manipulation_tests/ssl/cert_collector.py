@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os.path
 import socket
 import ssl
@@ -56,6 +57,13 @@ STATIC_HEADERS = OrderedDict([
 ])
 
 
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)-7s %(name)-8s %(funcName)-15s %(message)s")
+
+
+logger = logging.getLogger("ssl")
+
+
 def flatten_cookiejar(jar):
     cookies = []
     for cookie in jar:
@@ -85,11 +93,11 @@ def facilitate_serialize(x, history=False):
     return d
 
 
-def get_asn1(hostname):
+def get_asn1(hostname, timeout=5):
     ctx = ssl.SSLContext()
     ctx.set_ciphers("ALL")  # Come one, come all.
     sock = socket.socket()
-    sock.settimeout(5)
+    sock.settimeout(timeout)
     s = ctx.wrap_socket(sock, server_hostname=hostname)
     s.connect((hostname, 443))
 
@@ -118,9 +126,14 @@ def get_host_data(host, result):
         result['request_error'] = "SSLError"
         #... yes really
         result['request_error_details'] = e.args[0].reason.args[0].args[0]
+    except requests.exceptions.ReadTimeout as e:
+        result['request_error'] = "ReadTimeout"
     except requests.exceptions.ConnectionError as e:
         result['request_error'] = "ConnectionError"
-        result['request_error_details'] = str(e.args[0].reason.args[0])
+        try:
+            result['request_error_details'] = str(e.args[0].reason.args[0])
+        except AttributeError:
+            result['request_error_details'] = str(e.args[0])
     except requests.exceptions.ConnectTimeout as e:
         result['request_error'] = "ConnectionTimeout"
         result['request_error_details'] = 5
@@ -153,7 +166,8 @@ def get_host_data(host, result):
         result['cert_error'] = "GAI_ERROR"
 
     if 'cert_error' in result:
-        print(result['cert_error'], "Collecting Cert for:", host)
+        logger.warning(
+            "%s Collecting Cert for: %s", result['cert_error'], host)
 
     # If we successfully loaded a page after redirects, and the ultimate host
     # wasn't just `host`:443, then let's grab that certificate too, just for
@@ -171,9 +185,9 @@ def get_host_data(host, result):
 def try_fetch(host, attempt=0):
     data = {"host": host}
     try:
-        data = get_host_data(host, data)
+        get_host_data(host, data)
     except Exception as e:
-        print("ERROR Collecting Cert for:", host)
+        logger.exception("ERROR Collecting Cert for: %s", host)
         data["error"] = "UNKNOWN_ERROR:" + str(e)
         traceback.print_exc()
 
@@ -181,7 +195,23 @@ def try_fetch(host, attempt=0):
     return host, json.dumps(data)
 
 
+def setup_logging(verbose, logfile=None):
+    root_logger = logging.getLogger()
+    formatter = logging.Formatter(LOG_FORMAT)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(formatter)
+    root_logger.addHandler(streamhandler)
+
+    if logfile:
+        filehandler = logging.FileHandler(logfile)
+        filehandler.setFormatter(formatter)
+        root_logger.addHandler(filehandler)
+
+    root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+
 def main():
+    setup_logging(False)
 
     results_dir = sys.argv[1]
     out_file = open(os.path.join(results_dir, "ssl_certs.json"), 'w')
@@ -198,8 +228,8 @@ def main():
                 host, data = future.result()
                 if not data:
                     continue
-                print("SUCCESS Collecting Cert for:", host,
-                      "[{}/{}]".format(i + 1, n_hosts))
+                logger.info("SUCCESS Collecting Cert for: %s [%d/%d]",
+                            host, i + 1, n_hosts)
                 out_file.write(data)
                 out_file.write("\n")
 

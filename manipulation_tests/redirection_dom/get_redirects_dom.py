@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import os.path
 import sys
@@ -10,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.common.by import By
 
 # TODO - when sites timeout (from set_page_load_timeout) they throw an
@@ -20,7 +21,7 @@ from selenium.webdriver.common.by import By
 DEFAULT_HOSTS_FILE = "hosts.txt"
 
 # How long to wait for a page to finish loading
-DEFAULT_TIMEOUT_S = 30
+DEFAULT_TIMEOUT_S = 20
 
 # Number of threads to run simultaneously?
 # This makes timeouts go through the roof, though...
@@ -32,7 +33,16 @@ n_processed = 0
 n_queued = 0
 
 
-def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)-7s %(name)-8s %(funcName)-15s %(message)s")
+
+
+logger = logging.getLogger("doms")
+
+
+def query_host(results_dir, host, scheme="http", timeout=None):
+    start = time.time()
+
     # A file used throughout to to write redirect info to.
     # We can try to parse this later, but it's easy to do it now
     redirect_file_name = os.path.join(results_dir, "redirects.csv")
@@ -59,32 +69,29 @@ def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
         driver.set_page_load_timeout(timeout)
     driver.delete_all_cookies()
 
+    mid1 = time.time()
+    diff = mid1 - start
+    logger.info(".. Started Chrome in %.1f seconds for %s", diff, host)
+
     # make a request to that domain
     try:
         driver.get(scheme + "://" + host)
     except TimeoutException:
-        print("TIMEOUT on", host)
+        logger.info(".. TIMEOUT on %s", host)
         save_redirect_data("timeout", "?", "?", "?", "?")
+
+    mid2 = time.time()
+    diff = mid2 - mid1
+    logger.info(".. Fetched %s in %.1f seconds", host, diff)
 
     time.sleep(0.25)
 
     # save screenshot
-    driver.save_screenshot(os.path.join(results_dir, "screenshot.png"))
+    #driver.save_screenshot(os.path.join(results_dir, "screenshot.png"))
 
-    # save DOM
-    html = driver.execute_script("return document.documentElement.outerHTML")
-    with open(os.path.join(results_dir, "dom.html"), 'w') as dom_file:
-        dom_file.write(html)
-
-    #save final URL
-    with open(os.path.join(results_dir, "final_urls.txt"), 'w') as final_url:
-        final_url.write(str(driver.current_url))
-        save_redirect_data("final", "?", "?", "?", driver.current_url)
-
-    # save body text
-    text = driver.find_elements(By.XPATH, '//body')[0].text
-    with open(os.path.join(results_dir, "text.txt"), 'w') as text_file:
-        text_file.write(text)
+    mid3 = time.time()
+    diff = mid3 - mid2
+    #logger.info(".. Screenshotted %s in %.1f seconds", host, diff)
 
     # Get the relevant network logs
     timestamps = []
@@ -128,6 +135,29 @@ def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
             url = params.get('url')
             save_redirect_data('redirect', frameId, reason, url)
 
+    mid4 = time.time()
+    diff = mid4 - mid3
+    logger.info(".. Perf dumped %s in %.1f seconds", host, diff)
+
+    # save DOM
+    html = driver.execute_script("return document.documentElement.outerHTML")
+    with open(os.path.join(results_dir, "dom.html"), 'w') as dom_file:
+        dom_file.write(html)
+
+    #save final URL
+    with open(os.path.join(results_dir, "final_urls.txt"), 'w') as final_url:
+        final_url.write(str(driver.current_url))
+        save_redirect_data("final", "?", "?", "?", driver.current_url)
+
+    # save body text
+    text = driver.find_elements(By.XPATH, '//body')[0].text
+    with open(os.path.join(results_dir, "text.txt"), 'w') as text_file:
+        text_file.write(text)
+
+    mid5 = time.time()
+    diff = mid5 - mid4
+    logger.info(".. Dumped %s in %.1f seconds", host, diff)
+
     driver.quit()
 
     # sort the relevant logs
@@ -169,6 +199,11 @@ def get_redirects_and_dom(results_dir, host, scheme="http", timeout=None):
         for x in range(0, len(redirect_chain)):
             outfile.write("{},{}\n".format(redirect_chain[x], type_chain[x]))
 
+    end = time.time()
+    pdiff = end - mid5
+    diff = end - start
+    logger.info(".. Completed %s in %.1f seconds (%.1f)", host, diff, pdiff)
+
 
 def fetch_wrapper(host, results_dir, scheme):
     global n_processed
@@ -179,7 +214,7 @@ def fetch_wrapper(host, results_dir, scheme):
 
     n_processed += 1
 
-    print("Processing", "[{}/{}]".format(n_processed, n_queued), host)
+    logger.info("[%2d/%2d] Processing %s", n_processed, n_queued, host)
     sys.stdout.flush()
 
     timeout = DEFAULT_TIMEOUT_S
@@ -195,13 +230,17 @@ def fetch_wrapper(host, results_dir, scheme):
         os.makedirs(os.path.join(host_dir, d), exist_ok=True)
 
     try:
-        get_redirects_and_dom(host_dir, host, scheme=scheme, timeout=timeout)
+        query_host(host_dir, host, scheme=scheme, timeout=timeout)
     except TimeoutException:
-        print("LATE TIMEOUT on", host)
+        logger.warning("LATE TIMEOUT on %s", host)
         sys.stdout.flush()
         return host, "TIMEOUT"
+    except WebDriverException as e:
+        logger.warning("WEBDRIVER EXCEPTION on %s (%s)", host, e)
+        sys.stdout.flush()
+        return host, "WEBDRIVER"
     except Exception as e:
-        print("ERROR while collecting data for:", host)
+        logger.error("ERROR while collecting data for: %s", host)
         sys.stdout.flush()
         traceback.print_exc()
         return host, str(e)
@@ -221,10 +260,28 @@ def get_args():
     return parser.parse_args()
 
 
+def setup_logging(verbose, logfile=None):
+    root_logger = logging.getLogger()
+    formatter = logging.Formatter(LOG_FORMAT)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(formatter)
+    root_logger.addHandler(streamhandler)
+
+    if logfile:
+        filehandler = logging.FileHandler(logfile)
+        filehandler.setFormatter(formatter)
+        root_logger.addHandler(filehandler)
+
+    root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+
 def main():
     global n_queued
 
     args = get_args()
+
+    # DEBUG gives you a bunch of selenium details
+    setup_logging(False)
 
     results_dir = args.results_dir
     web_hosts = []
@@ -242,7 +299,7 @@ def main():
 
     with ThreadPoolExecutor(max_workers=NUM_WORKERS) as e:
         for i, host in enumerate(web_hosts):
-            print("Queueing", "[{}/{}]".format(i + 1, len(web_hosts)), host)
+            logger.info("Queueing [%d/%d] %s", i + 1, len(web_hosts), host)
             sys.stdout.flush()
             futures.append(
                 e.submit(fetch_wrapper, host, results_dir, args.scheme))
@@ -255,9 +312,9 @@ def main():
                 n_error += 1
 
             if error and error != "TIMEOUT":
-                print("Unexpected error on", host, ":", error)
+                logger.error("Unexpected error on %s: %s", host, error)
 
-    print("Final result:", n_ok, "successes,", n_error, "failures")
+    logger.info("Final result: %d successes, %d failures", n_ok, n_error)
 
 
 if __name__ == "__main__":

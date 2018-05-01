@@ -78,7 +78,7 @@ def main():
     up_down_script = os.path.abspath(
         os.path.join(os.path.dirname(__file__), UP_DOWN_SCRIPT))
 
-    for config_file in glob.glob(os.path.join(args.indir, "*.ovpn")):
+    for config_file in sorted(glob.glob(os.path.join(args.indir, "*.ovpn"))):
 
         while os.path.exists(HOLD_FILE):
             time.sleep(1)

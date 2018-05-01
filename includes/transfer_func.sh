@@ -21,8 +21,10 @@ _dropoff_ssh() {
 transfer_file() {
     tag=$1
     directory=$2
+    dir_d=$(dirname $directory)
+    dir_b=$(basename $directory)
     tarball=$HOME/.transfer.tar.gz
-    tar czf $tarball $directory
+    tar czf $tarball -C $dir_d $dir_b
     size=$(stat -f "%z" $tarball)
     cat $tarball | _dropoff_ssh upload $tag $size
     rm $HOME/.transfer.tar.gz

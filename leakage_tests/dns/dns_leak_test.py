@@ -10,7 +10,7 @@ from queue import Queue, Empty
 
 probes_completed = False
 
-SLEEP_TIME = .1
+SLEEP_TIME = .05
 
 
 # read input test file which has domains and ip addresses
@@ -50,6 +50,8 @@ def make_requests(domains, ip_addrs):
     query_v6 = 'dig AAAA '
     reverse_query = 'dig -x'
     dns_tcp = 'dig AXFR '
+
+    print('Executing simple queries')
 
     # execute simple queries
     for domain in domains:

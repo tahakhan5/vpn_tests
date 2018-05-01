@@ -4,6 +4,7 @@ import logging
 import glob
 import os.path
 import subprocess
+import time
 
 import openvpn
 
@@ -14,6 +15,9 @@ LOG_FORMAT = (
     "%(asctime)s %(levelname)-7s %(name)-12s %(funcName)-14s %(message)s")
 
 UP_DOWN_SCRIPT = "update-resolv-conf"
+
+HOLD_FILE = "/tmp/VPN_HOLD"
+
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -75,6 +79,10 @@ def main():
         os.path.join(os.path.dirname(__file__), UP_DOWN_SCRIPT))
 
     for config_file in glob.glob(os.path.join(args.indir, "*.ovpn")):
+
+        while os.path.exists(HOLD_FILE):
+            time.sleep(1)
+
         config_name = os.path.basename(config_file)[:-5].replace(" ", "_")
         config_file = os.path.abspath(config_file)
 

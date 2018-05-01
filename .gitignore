@@ -107,3 +107,4 @@ venv.bak/
 # Ignore DS_Store
 .DS_Store
 .vscode
+.*.swp

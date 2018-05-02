@@ -13,6 +13,8 @@ run_test() {
     DUMP_FILE=${test_tag}.pcap
     tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$DUMP_FILE &
     export REDIR_COLL_PID=$!
+    sleep 1
+
     info "Running $test_tag tests"
 
     # Actually run the test

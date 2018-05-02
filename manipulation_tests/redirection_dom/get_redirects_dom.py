@@ -62,6 +62,7 @@ def query_host(results_dir, host, scheme="http", timeout=None):
     # 'performance' logging allows us to get info about network requests
     caps = DesiredCapabilities.CHROME
     caps['loggingPrefs'] = {'performance': 'ALL'}
+    caps['max_duration'] = 180  # Kill test after 3 minutes of wedge, not 10.
     driver = webdriver.Chrome('./chromedriver', desired_capabilities=caps)
 
     driver.set_window_size(1920, 1500)

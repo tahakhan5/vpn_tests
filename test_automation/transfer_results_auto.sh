@@ -32,7 +32,7 @@ if [[ $(whoami) != 'root' ]]; then
 fi
 
 ### determine the root directory -- hackish but works with OS X and bash.
-pushd $(dirname $BASH_SOURCE) > /dev/null
+pushd $(dirname $BASH_SOURCE)/.. > /dev/null
 ROOT=$(pwd)
 popd >/dev/null
 ###

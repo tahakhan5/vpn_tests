@@ -28,7 +28,7 @@ if [[ $(whoami) != 'root' ]]; then
 fi
 
 ### determine the root directory -- hackish but works with OS X and bash.
-pushd $(dirname $BASH_SOURCE) > /dev/null
+pushd $(dirname $BASH_SOURCE)/.. > /dev/null
 ROOT=$(pwd)
 popd >/dev/null
 ###
@@ -106,12 +106,12 @@ info "Disabling IPv6 for the duration of the test."
 networksetup -setv6off Ethernet
 
 info_box "Executing leakage tests"
-run_test test_webrtc_leak rtc_leak ./leakage_tests/webrtc/
+run_test test_webrtc_leak rtc_leak $ROOT/leakage_tests/webrtc/
 
 info_box "Executing manipulation tests"
-run_test test_dns_manipulation dns_manipulation ./manipulation_tests/dns/
-run_test test_dom_redirection dom_redirection ./manipulation_tests/redirection_dom/
-run_test test_ssl_collection ssl_collection ./manipulation_tests/ssl/
+run_test test_dns_manipulation dns_manipulation $ROOT/manipulation_tests/dns/
+run_test test_dom_redirection dom_redirection $ROOT/manipulation_tests/redirection_dom/
+run_test test_ssl_collection ssl_collection $ROOT/manipulation_tests/ssl/
 
 info_box "Executing infrastructure tests"
 run_test test_recursive_dns_origin recursive_dns_origin
@@ -120,7 +120,7 @@ run_test test_infra_infer infrastructure_inference
 
 ## Keep these tests last
 info_box "Executing final tests"
-run_test test_netalyzr netalyzr ./manipulation_tests/netalyzr/
+run_test test_netalyzr netalyzr $ROOT/manipulation_tests/netalyzr/
 
 # These stay disabled
 # OpenVPN WILL leak DNS and IPv6 unless you work around it.

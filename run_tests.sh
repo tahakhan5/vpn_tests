@@ -90,7 +90,7 @@ while ! confirm "ARE YOU SURE THE VPN CONNECTION IS ESTABLISHED?"; do :; done
 EXTERNAL_VPN_IP=$(get_external_ip)
 if [[ "$EXTERNAL_VPN_IP" == "$PRE_VPN_IP" ]]; then
     error "Your IP address hasn't changed after connecting to the VPN!"
-    confirm "Continue anyway?"
+    confirm "Continue anyway?" || exit
 fi
 
 # We no longer capture an overall pcap because it doubles our result's size.

@@ -264,7 +264,11 @@ def google_geo(f, args):
 
     client = googlemaps.Client(creds["google_api_key"])
     loc = client.geolocate()
-    rg = client.reverse_geocode(loc["location"])
+    rg = None
+    try:
+        rg = client.reverse_geocode(loc["location"])
+    except KeyError:
+        pass
 
     output = {"geolocation": loc, "geocode": rg}
 
@@ -282,7 +286,10 @@ def run_tests(args):
     for i, (test_name, test_func) in enumerate(test.TESTS):
         logger.info("Starting test [{:2}/{}]: {}".format(
             i + 1, len(test.TESTS), test_name))
-        test_func(args)
+        try:
+            test_func(args)
+        except Exception as e:
+            logger.exception("Unanticipated exception in %s", test_name)
 
     logger.info("All done!")
 

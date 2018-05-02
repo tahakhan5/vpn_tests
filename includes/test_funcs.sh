@@ -32,12 +32,14 @@ test_ssl_collection() {
 }
 
 test_backconnect() {
-    ./backconnect/backconnect -o $1
+    ./backconnect/backconnect -o $1 &
+    kill_after $! 120
 }
 
 test_backconnect_nov6() {
     # We disable IPv6 during the auto tests
-    ./backconnect/backconnect -6 -o $1
+    ./backconnect/backconnect -6 -o $1 &
+    kill_after $! 120
 }
 
 test_infra_infer() {

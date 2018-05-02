@@ -30,6 +30,30 @@ run_test() {
     info "Test $test_tag complete"
 }
 
+# Kills the given PID after the given number of seconds
+kill_after() {
+    pid=$1
+    timeout=$2
+
+    n=0
+    while kill -0 $pid 2>/dev/null ; do
+        ((n+=1))
+        sleep 1
+        if [[ $n -ge $timeout ]]; then
+            echo "Killing pid $pid" >&2
+            kill $pid 2>/dev/null
+            sleep 1
+            kill -0 $pid 2>/dev/null || break
+            sleep 2
+            kill -0 $pid 2>/dev/null || break
+            echo "Kill -9 necessary on $pid" >&2
+            kill -9 $pid 2>/dev/null
+            sleep 1
+            kill -0 $pid 2>/dev/null && echo "Process $pid survived SIGKILL!" >&2
+        fi
+    done
+}
+
 # Blocks until we can access google
 wait_until_connected() {
     ping -o -t2 google.com >/dev/null 2>&1

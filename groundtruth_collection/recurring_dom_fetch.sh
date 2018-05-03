@@ -76,6 +76,7 @@ echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 ##############################################################################
 
 run_test test_dom_redirection dom_redirection $ROOT/manipulation_tests/redirection_dom/
+run_test test_ssl_collection ssl_collection $ROOT/manipulation_tests/ssl/
 
 echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 

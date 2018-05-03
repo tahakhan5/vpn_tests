@@ -62,6 +62,7 @@ def _find_chromes():
 
 
 def _watch_chromes():
+    logger.info("Monitoring for long-term Chrome sessions.")
     by_pid = {}
     while True:
         cur_chromes = _find_chromes()
@@ -70,7 +71,7 @@ def _watch_chromes():
             if chrome.pid in by_pid:
                 continue
             by_pid[chrome.pid] = WatchedProc(chrome, now, KillState.ALIVE)
-            logger.info("Monitoring new Chrome instance %d", chrome.pid)
+            logger.debug("Monitoring new Chrome instance %d", chrome.pid)
 
         to_rm = []
         for pid, wproc in by_pid.items():

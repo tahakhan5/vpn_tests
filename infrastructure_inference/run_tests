@@ -38,6 +38,7 @@ DEFAULT_ANYCASTFILE = os.path.join(BASE_PATH, "resources/anycast_hosts.txt")
 # These hosts return vanilla IP addresses.
 IPv6_FETCH_HOST = "https://ipv6.projekts.xyz"
 IPv4_FETCH_HOST = "https://ipv4.projekts.xyz"
+IPv4_FETCH_HOST_BACKUP = "https://ifconfig.info"
 
 # How many RTTs should we measure, per host?
 RTTS_N_REQUESTS_PER_HOST = 10
@@ -145,6 +146,8 @@ def fetch_command_output(f, args, command):
 
 @test("egress-ip6.out", "IPv6 egress IP fetch", IPv6_FETCH_HOST)
 @test("egress-ip4.out", "IPv4 egress IP fetch", IPv4_FETCH_HOST)
+@test("egress-ip4-backup.out", "IPv4 egress IP fetch backup",
+      IPv4_FETCH_HOST_BACKUP)
 def save_web_contents(f, args, address):
     """Fetches web contents and saves it to the file handle."""
     resp, err = utils.fetch_web_contents(address)
@@ -169,13 +172,21 @@ def ping_routed(f, args):
 
 
 @test("ping-egress.json", "pinging egress v4 IP")
-def ping_egress(f, args):
+def ping_egress(f, args, backup=False):
     """Ping egress IPv4 IP."""
-    ip, err = utils.fetch_web_contents(IPv4_FETCH_HOST)
+    if not backup:
+        ip, err = utils.fetch_web_contents(IPv4_FETCH_HOST)
+    else:
+        ip, err = utils.fetch_web_contents(IPv4_FETCH_HOST_BACKUP)
 
     if err:
+        logger.info("Encountered error while fetching IP... %s", str(err))
+        if not backup:
+            return ping_egress(f, args, True)
+
         json.dump({"error": err}, f)
         return
+    ip = ip.strip()
 
     output = utils.get_ping_stats(ip)
     json.dump(output, f)

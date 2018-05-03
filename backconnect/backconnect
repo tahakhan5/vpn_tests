@@ -147,9 +147,12 @@ def try_connect(port, timeout, setup_sleep, proto=4):
     addr = "0.0.0.0" if proto == 4 else "::"
     try:
         server = ReusedTCPServer(timeout, (addr, port), TokenHandler)
+    except OSError as e:
+        logger.exception("Couldn't bind to address.")
+        return False, "bind_failure_os"
     except PermissionError:  # noqa -- this is defined, but linter doesn't know.
         logger.error("Unable to bind to address. Not running as root?")
-        return False, "bind_failure"
+        return False, "bind_failure_perm"
 
     logger.debug("Starting server thread.")
     thread = threading.Thread(target=server.serve_forever)

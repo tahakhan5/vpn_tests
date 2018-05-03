@@ -43,7 +43,7 @@ source $ROOT/includes/test_funcs.sh
 DEFAULT_DIR=`pwd`
 
 # collect information about the vpn service
-VPN_NAME=GROUNDTRUTH_DOM
+VPN_NAME=GROUNDTRUTH_DOM_$(date -u '+%y%m%d_%H%M%S')
 TAG=$VPN_NAME
 
 # fetch the git commit info
@@ -66,6 +66,7 @@ mkdir -p $TRACES_DIR
 # write the basic info to a file
 echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
 echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
+echo STARTTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
 ifconfig -v > $CONFIG_DIR/$TAG"_ifconfig_default"
 cat /etc/resolv.conf > $CONFIG_DIR/$TAG"_resolv_default"
@@ -75,6 +76,8 @@ echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 ##############################################################################
 
 run_test test_dom_redirection dom_redirection $ROOT/manipulation_tests/redirection_dom/
+
+echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
 info "Test complete. Transferring results"
 

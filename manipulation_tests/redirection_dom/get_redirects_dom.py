@@ -14,6 +14,8 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.common.by import By
 
+from chrome_killa import start_chrome_killa
+
 # TODO - when sites timeout (from set_page_load_timeout) they throw an
 #        exception that causes a return to main. That means that it doesn't
 #        write any partial results that may be available.
@@ -283,6 +285,8 @@ def main():
 
     # DEBUG gives you a bunch of selenium details
     setup_logging(False)
+
+    start_chrome_killa()
 
     results_dir = args.results_dir
     web_hosts = []

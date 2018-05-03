@@ -35,17 +35,11 @@ class WatchedProc(object):
     def try_stop(self):
         if self.state == KillState.ALIVE:
             logger.info("TERMing runaway Chrome", self.proc.pid)
-            try:
-                self.proc.terminate()
-            except psutil.NoSuchProcess:
-                pass
+            self.proc.terminate()
             self.state = KillState.TERMED
         elif self.state == KillState.TERMED:
             logger.warning("KILLing runaway Chrome", self.proc.pid)
-            try:
-                self.proc.kill()
-            except psutil.NoSuchProcess:
-                pass
+            self.proc.kill()
             self.state = KillState.KILLED
         elif (self.state == KillState.KILLED and self.proc.is_running() and
               self.proc.status() == 'running'):
@@ -80,14 +74,19 @@ def _watch_chromes():
 
         to_rm = []
         for pid, wproc in by_pid.items():
-            if not wproc.proc.is_running() or wproc.proc.status() == 'zombie':
-                to_rm.append(wproc.proc.pid)
+            try:
+                if (not wproc.proc.is_running() or
+                        wproc.proc.status() == 'zombie'):
+                    to_rm.append(wproc.proc.pid)
 
-            elif now - wproc.first_seen > CHROME_KILL_AFTER_S:
-                try:
+                elif now - wproc.first_seen > CHROME_KILL_AFTER_S:
                     wproc.try_stop()
-                except Exception:
-                    logger.error("Unexpected exception")
+            except psutil.NoSuchProcess:
+                to_rm.append(wproc.proc.pid)
+            except ProcessLookupError:
+                to_rm.append(wproc.proc.pid)
+            except Exception:
+                logger.error("Unexpected exception")
 
         for pid in to_rm:
             del by_pid[pid]

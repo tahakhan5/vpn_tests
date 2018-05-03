@@ -35,11 +35,17 @@ class WatchedProc(object):
     def try_stop(self):
         if self.state == KillState.ALIVE:
             logger.info("TERMing runaway Chrome", self.proc.pid)
-            self.proc.terminate()
+            try:
+                self.proc.terminate()
+            except psutil.NoSuchProcess:
+                pass
             self.state = KillState.TERMED
         elif self.state == KillState.TERMED:
             logger.warning("KILLing runaway Chrome", self.proc.pid)
-            self.proc.kill()
+            try:
+                self.proc.kill()
+            except psutil.NoSuchProcess:
+                pass
             self.state = KillState.KILLED
         elif (self.state == KillState.KILLED and self.proc.is_running() and
               self.proc.status() == 'running'):
@@ -78,7 +84,10 @@ def _watch_chromes():
                 to_rm.append(wproc.proc.pid)
 
             elif now - wproc.first_seen > CHROME_KILL_AFTER_S:
-                wproc.try_stop()
+                try:
+                    wproc.try_stop()
+                except Exception:
+                    logger.error("Unexpected exception")
 
         for pid in to_rm:
             del by_pid[pid]

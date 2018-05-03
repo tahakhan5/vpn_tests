@@ -81,6 +81,7 @@ echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
 echo CITY:$VPN_CITY >> $RESULTS_DIR$TAG"_info"
 echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
 echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
+echo STARTTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
 # This can't be done here since the script is in a loop
 ## save the default ifconfig and dns nsconfig file
@@ -130,6 +131,8 @@ run_test test_netalyzr netalyzr $ROOT/manipulation_tests/netalyzr/
 #run_test test_tunnel_failure tunnel_failure
 
 ################################################################################
+
+echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
 info "Re-enabling IPv6."
 networksetup -setv6automatic Ethernet

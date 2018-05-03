@@ -74,6 +74,7 @@ echo COUNTRY:$VPN_COUNTRY >> $RESULTS_DIR$TAG"_info"
 echo CITY:$VPN_CITY >> $RESULTS_DIR$TAG"_info"
 echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
 echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
+echo STARTTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
 # save the default ifconfig, dns nsconfig file and IP
 ifconfig -v > $CONFIG_DIR$TAG"_ifconfig_default"
@@ -266,6 +267,8 @@ run_test test_tun_fail tunnel_failure "./leakage_tests/tunnel_failure/"
 
 
 ################################################################################
+
+echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
 color_box $COLOR_CYAN "*" "DISCONNECT FROM THE VPN"
 pause "Disconnected?"

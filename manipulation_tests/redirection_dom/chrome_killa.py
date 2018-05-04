@@ -55,6 +55,8 @@ def _find_chromes():
                 chromes.append(proc)
         except psutil.ZombieProcess:
             pass
+        except psutil.NoSuchProcess:
+            pass
         except psutil.AccessDenied:
             pass
 

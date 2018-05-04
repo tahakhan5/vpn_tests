@@ -39,7 +39,10 @@ def _start_capture(pkt_file):
     #p = subprocess.Popen(["tcpdump", "-w", pkt_file, "-Q", "pid=" + str(pid)],
     #                     stderr=subprocess.DEVNULL)
     # This grabs default interface since pktap doesn't seem happy on some VPNs
-    interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+    default_gateways = netifaces.gateways()['default']
+    gateways = "pktap," + ",".join([x[1] for x in default_gateways.values()])
+    interface = gateways
+    #interface = default_gateways.get(netifaces.AF_INET, gateways)[1]
     p = subprocess.Popen(["tcpdump", "-w", pkt_file, "-i", interface],
                          stderr=subprocess.DEVNULL)
     time.sleep(1)

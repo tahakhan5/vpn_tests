@@ -195,6 +195,9 @@ def get_host_data(host, result, mode):
         result['cert_error'] = "BROKEN_PIPE"
     except ConnectionResetError as e:
         result['cert_error'] = "CONN_RESET"
+    except OSError as e:
+        result['cert_error'] = "OS_ERROR"
+        result['cert_error_details'] = str(e)
     except ssl.CertificateError as e:
         result['cert_error'] = "CERT_ERROR"
         result['cert_error_details'] = str(e)
@@ -203,6 +206,10 @@ def get_host_data(host, result, mode):
         result['cert_error_details'] = str(e)
     except socket.gaierror as e:
         result['cert_error'] = "GAI_ERROR"
+    except Exception as e:
+        logger.exception("Unexpected error")
+        result['cert_error'] = "UNEXPECTED_ERROR"
+        result['cert_error_details'] = str(e)
 
     if 'cert_error' in result:
         logger.warning(

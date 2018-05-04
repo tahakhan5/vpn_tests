@@ -59,7 +59,7 @@ def _find_chromes():
             pass
         except psutil.AccessDenied:
             pass
-        except psutil.Exception:
+        except Exception:
             logger.exception("unknown exception caught")
             pass
 

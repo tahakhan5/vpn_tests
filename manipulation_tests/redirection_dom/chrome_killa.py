@@ -34,16 +34,16 @@ class WatchedProc(object):
 
     def try_stop(self):
         if self.state == KillState.ALIVE:
-            logger.info("TERMing runaway Chrome", self.proc.pid)
+            logger.info("TERMing runaway Chrome %d", self.proc.pid)
             self.proc.terminate()
             self.state = KillState.TERMED
         elif self.state == KillState.TERMED:
-            logger.warning("KILLing runaway Chrome", self.proc.pid)
+            logger.warning("KILLing runaway Chrome %d", self.proc.pid)
             self.proc.kill()
             self.state = KillState.KILLED
         elif (self.state == KillState.KILLED and self.proc.is_running() and
               self.proc.status() == 'running'):
-            logger.error("Couldn't kill Chrome", self.proc.pid)
+            logger.error("Couldn't kill Chrome %d", self.proc.pid)
 
 
 def _find_chromes():

@@ -57,10 +57,12 @@ TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 # fetch the git commit info
 COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
 
+log_checkpoint "auto_start"
+
 ################################################################################
 
 # create respective directories for results
-RESULTS_DIR=$DEFAULT_DIR/$TAG"_results/"
+RESULTS_DIR=$DEFAULT_DIR/results/$TAG
 mkdir -p $RESULTS_DIR
 
 # Yeah, I dunno what happened here, but I know I'm really hesitant to rm -rf
@@ -77,11 +79,11 @@ mkdir -p $TRACES_DIR
 ################################################################################
 
 # write the basic info to a file
-echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
-echo CITY:$VPN_CITY >> $RESULTS_DIR$TAG"_info"
-echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR$TAG"_info"
-echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
-echo STARTTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
+echo NAME:$VPN_NAME >> $RESULTS_DIR/info
+echo CITY:$VPN_CITY >> $RESULTS_DIR/info
+echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR/info
+echo COMMIT:$COMMIT >> $RESULTS_DIR/info
+echo STARTTIME:$(date -u -R) >> $RESULTS_DIR/info
 
 # This can't be done here since the script is in a loop
 ## save the default ifconfig and dns nsconfig file
@@ -100,6 +102,8 @@ EXTERNAL_VPN_IP=$(get_external_ip)
 echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
 
 ##############################################################################
+
+log_checkpoint "auto_testing"
 
 # Run the tests we want, while capturing pcaps and giving feedback to the user
 
@@ -132,7 +136,7 @@ run_test test_netalyzr netalyzr $ROOT/manipulation_tests/netalyzr/
 
 ################################################################################
 
-echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
+echo ENDTIME:$(date -u -R) >> $RESULTS_DIR/info
 
 info "Re-enabling IPv6."
 networksetup -setv6automatic Ethernet
@@ -140,3 +144,5 @@ info "Waiting a bit for IPv6 recovery."
 sleep 5
 
 info "TESTS COMPLETE"
+
+log_checkpoint "auto_tests_complete"

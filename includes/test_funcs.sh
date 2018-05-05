@@ -15,6 +15,10 @@ test_webrtc_leak() {
     rm -rf ChromeProfile
 }
 
+test_dns_leakage() {
+    python3 dns_leak_test.py $1
+}
+
 test_dns_manipulation() {
     ./checkdns.sh
 }

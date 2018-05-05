@@ -11,10 +11,11 @@ run_test() {
 
     # Run the test specific capture
     DUMP_FILE=${test_tag}.pcap
-    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$DUMP_FILE &
+    tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$DUMP_FILE 2>/dev/null &
     export REDIR_COLL_PID=$!
     sleep 1
 
+    log_checkpoint ${test_tag}_start
     info "Running $test_tag tests"
 
     # Actually run the test
@@ -22,12 +23,14 @@ run_test() {
     time $test_func $test_dir \
         > >(tee -a $test_dir/std.out) \
         2> >(tee -a $test_dir/std.err >&2)
+    rv=$?
     [[ "$ch_dir" ]] && popd > /dev/null
 
     # Kill the test specific capture
     kill -s TERM $REDIR_COLL_PID
     wait $REDIR_COLL_PID
     info "Test $test_tag complete"
+    log_checkpoint ${test_tag}_done $rv
 }
 
 # Kills the given PID after the given number of seconds
@@ -104,6 +107,14 @@ update_repository() {
     pushd $ROOT >/dev/null
     sudo -H -u ${SUDO_USER-vpn_test} git pull > /dev/null
     popd >/dev/null
+}
+
+log_checkpoint() {
+    local extra=
+    if [[ "$2" ]]; then
+        extra="--extra $2"
+    fi
+    RUN_ID=$($ROOT/includes/log_metrics checkpoint $TAG $1 $RUN_ID $extra)
 }
 
 COLOR_NONE=-1

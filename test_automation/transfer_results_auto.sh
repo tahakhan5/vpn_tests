@@ -37,6 +37,7 @@ ROOT=$(pwd)
 popd >/dev/null
 ###
 
+# Still needed for log_checkpoint
 source $ROOT/venv/bin/activate
 
 # Functions for uploading results and retrieving API keys.
@@ -57,7 +58,9 @@ TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 
 ################################################################################
 
-RESULTS_DIR=$DEFAULT_DIR/$TAG"_results/"
+RESULTS_DIR=$DEFAULT_DIR/results/$TAG
+
+log_checkpoint "auto_pre_transfer"
 
 info "Waiting for internet to recover."
 wait_until_connected
@@ -65,3 +68,4 @@ info "Transferring results"
 transfer_file $TAG $RESULTS_DIR
 rm -r $RESULTS_DIR
 alert "TRANSER COMPLETE"
+log_checkpoint "auto_done"

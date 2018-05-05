@@ -52,7 +52,7 @@ COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
 ################################################################################
 
 # create respective directories for results
-RESULTS_DIR=$DEFAULT_DIR/$TAG"_results/"
+RESULTS_DIR=$DEFAULT_DIR/results/$TAG
 mkdir -p $RESULTS_DIR
 
 CONFIG_DIR=$RESULTS_DIR/configs
@@ -64,24 +64,27 @@ mkdir -p $TRACES_DIR
 ################################################################################
 
 # write the basic info to a file
-echo NAME:$VPN_NAME >> $RESULTS_DIR$TAG"_info"
-echo COMMIT:$COMMIT >> $RESULTS_DIR$TAG"_info"
-echo STARTTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
+echo NAME:$VPN_NAME >> $RESULTS_DIR/info
+echo COMMIT:$COMMIT >> $RESULTS_DIR/info
+echo STARTTIME:$(date -u -R) >> $RESULTS_DIR/info
 
-ifconfig -v > $CONFIG_DIR/$TAG"_ifconfig_default"
-cat /etc/resolv.conf > $CONFIG_DIR/$TAG"_resolv_default"
+ifconfig -v > $CONFIG_DIR/ifconfig_default
+cat /etc/resolv.conf > $CONFIG_DIR/resolv_default
 EXTERNAL_VPN_IP=$(get_external_ip)
-echo $EXTERNAL_VPN_IP > $CONFIG_DIR/$TAG"_external_ip"
+echo $EXTERNAL_VPN_IP > $CONFIG_DIR/external_ip
 
 ##############################################################################
 
+log_checkpoint "gt_testing"
 run_test test_dom_redirection dom_redirection $ROOT/manipulation_tests/redirection_dom/
 run_test test_ssl_collection ssl_collection $ROOT/manipulation_tests/ssl/
 
-echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
+echo ENDTIME:$(date -u -R) >> $RESULTS_DIR/info
 
 info "Test complete. Transferring results"
 
+log_checkpoint "gt_pre_transfer"
 transfer_file $TAG $RESULTS_DIR
 rm -r $RESULTS_DIR
 alert "TRANSER COMPLETE"
+log_checkpoint "gt_done"

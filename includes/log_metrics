@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Log metrics."""
+
+import argparse
+import sys
+
+import requests
+
+
+ENDPOINT = "https://metrics.projekts.xyz/api/metrics/collect"
+
+
+def post_checkpoint(x):
+    args = vars(x)
+    del args['func']
+
+    r = requests.post(ENDPOINT, json=args)
+
+    #from pprint import pprint
+    #pprint(r.text, stream=sys.stderr)
+
+    j = r.json()
+
+    if 'id' in j:
+        print(j['id'])
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog='Submit metrics information')
+
+    subparsers = parser.add_subparsers(dest='type')
+    subparsers.required = True
+
+    checkpoint_parser = subparsers.add_parser('checkpoint',
+                                              help='register a checkpoint')
+    checkpoint_parser.add_argument('tag', help='current tag')
+    checkpoint_parser.add_argument('name', help='checkpoint name')
+    checkpoint_parser.add_argument('--extra', type=str,
+                                   help='any extra data to send along')
+    checkpoint_parser.add_argument('id', nargs="?",
+                                   help='unique-to-session ID')
+    checkpoint_parser.set_defaults(func=post_checkpoint)
+
+    return parser.parse_args()
+
+
+def main():
+    args = get_args()
+    try:
+        args.func(args)
+    except Exception as e:
+        sys.stderr.write("ERROR: " + str(e) + "\n")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

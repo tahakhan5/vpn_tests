@@ -79,6 +79,33 @@ get_external_ip() {
     curl -sS https://ipv4.projekts.xyz
 }
 
+get_commit() {
+    echo $(cd $ROOT; git rev-parse --verify HEAD)
+}
+
+configure_github_ssh_if_needed() {
+    SSH_CONF_DIR=/Users/${SUDO_USER-vpn_test}/.ssh
+    grep -sqi '^Host github.com' $SSH_CONF_DIR/config && return
+
+    mkdir -p $SSH_CONF_DIR
+    read -r -d '' hostinfo <<EOF
+Host github.com
+    IdentityFile $ROOT/includes/dropoff_key
+EOF
+    echo "$hostinfo" >> $SSH_CONF_DIR/config
+
+    info "Installed github keying info."
+    info "If it asks a yes/no question, please say yes!:"
+}
+
+update_repository() {
+    configure_github_ssh_if_needed
+    info "Pulling any updates..."
+    pushd $ROOT >/dev/null
+    sudo -H -u ${SUDO_USER-vpn_test} git pull > /dev/null
+    popd >/dev/null
+}
+
 COLOR_NONE=-1
 COLOR_BLACK=0
 COLOR_RED=1
@@ -92,13 +119,13 @@ COLOR_WHITE=7
 colorize() {
     tput setaf $1
     shift
-    printf "$@\n"
+    printf "$@"
     tput sgr0
 }
 
 pause() {
     tput bold
-    tput setaf $COLOR_CYAN
+    tput setaf $COLOR_MAGENTA
     read -s -p "$@ Press any key when ready." -n 1 result
     echo ""
     tput sgr0
@@ -106,7 +133,7 @@ pause() {
 
 confirm() {
     tput bold
-    tput setaf $COLOR_CYAN
+    tput setaf $COLOR_MAGENTA
     result=
     while [[ "$result" != 'y' && "$result" != 'n' ]]; do
         read -p "? $@ [y/n]: " result
@@ -155,5 +182,5 @@ info_box() {
 
 info() {
     tput bold
-    colorize $COLOR_CYAN "# $*"
+    colorize $COLOR_CYAN "# $*\n"
 }

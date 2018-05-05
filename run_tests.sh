@@ -25,7 +25,23 @@ source $ROOT/includes/test_funcs.sh
 DEFAULT_DIR=`pwd`
 DEFAULT_DIR=$DEFAULT_DIR"/"
 
+# fetch the git commit info
+COMMIT=$(get_commit)
+
+# pull changes to repo if necessary
+if [[ "$1" == "dev" ]]; then
+    warning "Running in DEV mode..."
+else
+    update_repository
+    NEW_COMMIT=$(get_commit)
+    if [[ "$NEW_COMMIT" != "$COMMIT" ]]; then
+        info "Your repository was out of date... restarting."
+        exec $0 $@
+    fi
+fi
+
 # collect information about the vpn service
+alert "Please enter VPN details"
 read -p "Enter the name of the VPN service being tested: " VPN_NAME
 read -p "Enter the country for the server you are connecting to: " VPN_COUNTRY
 read -p "Enter the city you are connectiong to (leave blank if unavailable): " VPN_CITY
@@ -35,9 +51,6 @@ read -p "Enter a SHORT + UNIQUE descriptor for the supposed VPN current location
 PATH_SAFE_VPN_NAME=$(echo "${VPN_NAME// /_}" | clean_str)
 PATH_SAFE_VPN_LOC_TAG=$(echo "${VPN_LOC_TAG// /_}" | clean_str)
 TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
-
-# fetch the git commit info
-COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
 
 #########################################################################################
 
@@ -83,7 +96,7 @@ PRE_VPN_IP=$(get_external_ip)
 echo $PRE_VPN_IP > $CONFIG_DIR$TAG"_pre_vpn_ip"
 
 # prompt user to connect to the VPN service
-color_box $COLOR_CYAN "*" "CONNECT TO THE VPN SERVICE"
+alert "CONNECT TO THE VPN SERVICE"
 pause "Connected?"
 
 while ! confirm "ARE YOU SURE THE VPN CONNECTION IS ESTABLISHED?"; do :; done
@@ -270,7 +283,7 @@ run_test test_tun_fail tunnel_failure "./leakage_tests/tunnel_failure/"
 
 echo ENDTIME:$(date -u -R) >> $RESULTS_DIR$TAG"_info"
 
-color_box $COLOR_CYAN "*" "DISCONNECT FROM THE VPN"
+alert "DISCONNECT FROM THE VPN"
 pause "Disconnected?"
 while [[ "$EXTERNAL_VPN_IP" == $(get_external_ip) ]]; do
     error "Your IP is still the same as on the VPN."

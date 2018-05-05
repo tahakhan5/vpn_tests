@@ -9,7 +9,8 @@ def run_netalyzr():
         ['java',
          '-jar', 'NetalyzrCLI.jar',
          '-XX:+IgnoreUnrecognizedVMOptions',
-         '--add-modules', 'java.xml.bind'], stdout=subprocess.PIPE)
+         '--add-modules', 'java.xml.bind'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     std_output = result_out.communicate()[0].decode('ASCII', errors='ignore')
     results_url = std_output.split("results available at:")[-1].strip("\n")
     return results_url

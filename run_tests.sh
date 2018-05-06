@@ -45,13 +45,14 @@ read -p "Enter the name of the VPN service being tested: " VPN_NAME
 read -p "Enter the country for the server you are connecting to: " VPN_COUNTRY
 read -p "Enter the city you are connecting to (leave blank if unavailable): " VPN_CITY
 read -p "Enter a SHORT + UNIQUE descriptor for the supposed VPN current location (e.g.  'sfo1') : " VPN_LOC_TAG
+read -p "Enter YOUR first name (e.g. 'Joe'): " RUNNER_NAME
 
 # create a tag for labeling purposes
 PATH_SAFE_VPN_NAME=$(echo "${VPN_NAME// /_}" | clean_str)
 PATH_SAFE_VPN_LOC_TAG=$(echo "${VPN_LOC_TAG// /_}" | clean_str)
 TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 
-log_checkpoint "start"
+log_checkpoint "start" $RUNNER_NAME
 
 #########################################################################################
 
@@ -74,6 +75,7 @@ echo CITY:$VPN_CITY >> $RESULTS_DIR/info
 echo LOC_TAG:$VPN_LOC_TAG >> $RESULTS_DIR/info
 echo COMMIT:$COMMIT >> $RESULTS_DIR/info
 echo STARTTIME:$(date -u -R) >> $RESULTS_DIR/info
+echo RUNNER_NAME:$RUNNER_NAME >> $RESULTS_DIR/info
 
 # save the default ifconfig, dns nsconfig file and IP
 ifconfig -v > $CONFIG_DIR/ifconfig_default

@@ -137,7 +137,10 @@ colorize() {
 pause() {
     tput bold
     tput setaf $COLOR_MAGENTA
-    read -s -p "$@ Press any key when ready." -n 1 result
+    echo -n "$@ Press any key when ready. "
+    while ! read -s -t 1 -n1 result; do
+        echo -ne '\a'
+    done
     echo ""
     tput sgr0
 }

@@ -145,7 +145,7 @@ log_checkpoint "pre_disconnect"
 alert "DISCONNECT FROM THE VPN"
 pause "Disconnected?"
 while [[ "$EXTERNAL_VPN_IP" == $(get_external_ip) ]]; do
-    error "Your IP is still the same as on the VPN."
+    warning "Your IP is still the same as on the VPN."
     confirm "Continue anyway?" && break
 done
 

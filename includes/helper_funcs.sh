@@ -82,6 +82,25 @@ get_external_ip() {
     curl -sS https://ipv4.projekts.xyz
 }
 
+get_external_ip6() {
+    curl -sS https://ipv6.projekts.xyz
+}
+
+verify_connectivity() {
+    local ok=0
+    if [[ ! $(get_external_ip) ]] ; then
+        error "You do not have valid IPv4 connectivity."
+        ok=1
+    fi
+
+    if [[ ! $(get_external_ip6) ]] ; then
+        error "You do not have valid IPv6 connectivity."
+        ok=1
+    fi
+
+    return $ok
+}
+
 get_commit() {
     echo $(cd $ROOT; git rev-parse --verify HEAD)
 }
@@ -193,11 +212,11 @@ color_box() {
 }
 
 error() {
-    color_box $COLOR_RED "#" $*
+    color_box $COLOR_RED "#" $* >&2
 }
 
 warning() {
-    color_box $COLOR_YELLOW "#" $*
+    color_box $COLOR_YELLOW "#" $* >&2
 }
 
 alert() {

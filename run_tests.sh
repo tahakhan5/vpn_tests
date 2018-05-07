@@ -24,6 +24,13 @@ source $ROOT/includes/test_funcs.sh
 
 DEFAULT_DIR=`pwd`
 
+
+# update network time to avoid certificate errors
+ntpdate -u time.apple.com
+
+# preemptively update the permissions of the drop-off key
+chmod 500 $DEFAULT_DIR/includes/dropoff_key
+ 
 # fetch the git commit info
 COMMIT=$(get_commit)
 

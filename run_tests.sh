@@ -39,6 +39,8 @@ else
     fi
 fi
 
+ensure_host_modifications_installed
+
 # collect information about the vpn service
 alert "Please enter VPN details"
 read -p "Enter the name of the VPN service being tested: " VPN_NAME

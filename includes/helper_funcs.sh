@@ -117,6 +117,16 @@ log_checkpoint() {
     RUN_ID=$($ROOT/includes/log_metrics checkpoint $TAG $1 $RUN_ID $extra)
 }
 
+
+# Installs any system changes if needed
+ensure_host_modifications_installed() {
+    # Our hostfile needs to shut up Apple's courier service on the vmware hosts
+    if ! grep -sqi '^courier.push.apple.com' /etc/hosts ; then
+        cat $ROOT/includes/files/courier_hosts >> /etc/hosts
+    fi
+}
+
+
 COLOR_NONE=-1
 COLOR_BLACK=0
 COLOR_RED=1

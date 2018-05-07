@@ -24,11 +24,13 @@ source $ROOT/includes/test_funcs.sh
 
 DEFAULT_DIR=`pwd`
 
-info "Verifying internet connectivity..."
-if ! verify_connectivity; then
-    exit 1
+if [[ "$1" != "no_check" ]]; then
+    info "Verifying internet connectivity..."
+    if ! verify_connectivity; then
+        exit 1
+    fi
+    info "...you're good to go!"
 fi
-info "...you're good to go!"
 
 # update time from the network to avoid certificate errors
 ntpdate -u time.apple.com > /dev/null &

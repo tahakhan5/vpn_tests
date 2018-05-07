@@ -25,8 +25,8 @@ source $ROOT/includes/test_funcs.sh
 DEFAULT_DIR=`pwd`
 
 
-# update network time to avoid certificate errors
-ntpdate -u time.apple.com
+# update time from the network to avoid certificate errors
+ntpdate -u time.apple.com > /dev/null &
 
 # preemptively update the permissions of the drop-off key
 chmod 500 $DEFAULT_DIR/includes/dropoff_key
@@ -47,9 +47,6 @@ else
 fi
 
 ensure_host_modifications_installed
-
-# Quietly update the clock in the background
-ntpdate time.apple.com > /dev/null &
 
 # collect information about the vpn service
 alert "Please enter VPN details"

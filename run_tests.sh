@@ -145,7 +145,7 @@ run_test test_tun_fail tunnel_failure "./leakage_tests/tunnel_failure/"
 
 echo ENDTIME:$(date -u -R) >> $RESULTS_DIR/info
 
-log_checkpoint "pre_disconnect"
+log_checkpoint "pre_disconnect" &  # Background to stop hanging as net recovers
 
 alert "DISCONNECT FROM THE VPN"
 pause "Disconnected?"

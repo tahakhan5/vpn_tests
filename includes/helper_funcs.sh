@@ -114,7 +114,11 @@ log_checkpoint() {
     if [[ "$2" ]]; then
         extra="--extra $2"
     fi
-    RUN_ID=$($ROOT/includes/log_metrics checkpoint $TAG $1 $RUN_ID $extra)
+
+    local t_id=$($ROOT/includes/log_metrics checkpoint $TAG $1 $RUN_ID $extra)
+    if [[ ! "$RUN_ID" ]]; then
+        RUN_ID=$t_id
+    fi
 }
 
 

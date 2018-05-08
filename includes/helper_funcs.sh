@@ -6,6 +6,8 @@ run_test() {
     test_tag=$2     # Friendly name/tag for this *test*
     ch_dir=$3       # Optional directory to change in to before test
 
+    local pre_ip=$(get_external_ip)
+
     test_dir=$RESULTS_DIR/$test_tag
     mkdir -p $test_dir
 
@@ -31,6 +33,8 @@ run_test() {
     wait $REDIR_COLL_PID
     info "Test $test_tag complete"
     log_checkpoint ${test_tag}_done $rv
+
+    rerun_if_vpn_failed $pre_ip $@
 }
 
 # Kills the given PID after the given number of seconds
@@ -84,6 +88,36 @@ get_external_ip() {
 
 get_external_ip6() {
     curl -sS https://ipv6.projekts.xyz
+}
+
+rerun_if_vpn_failed() {
+    local pre_ip=$1
+    shift 1
+
+    local ip=$(get_external_ip)
+
+    # If we didn't change IPs, we're good to go.
+    [[ "$ip" == "$pre_ip" ]] && return
+
+    log_checkpoint ip_error "$pre_ip,$ip"
+
+    if [[ "$ip" == "$PRE_VPN_IP" ]] ; then
+        error "The VPN has disconnected. Please reconnect to the VPN."
+    else
+        error "Your IP changed during this test. Please verify VPN connection."
+    fi
+
+    while true; do
+        if confirm "VERIFY VPN CONNECTION FIRST. Re-run failed test?"; then
+            info "Re-running failed test."
+            run_test $@
+            return
+        elif confirm "Would you like to exit the testing suite?"; then
+            info "Exiting, per your request."
+            exit 1
+        fi
+        info "Well those are your options, dude."
+    done
 }
 
 verify_connectivity() {

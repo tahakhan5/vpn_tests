@@ -24,7 +24,7 @@ test_dns_manipulation() {
 }
 
 test_bad_requests() {
-    python3 bad_requests.py
+    python3 bad_requests.py $1
 }
 
 test_netalyzr() {

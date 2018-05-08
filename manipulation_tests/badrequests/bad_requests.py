@@ -10,8 +10,11 @@ base64-encoded version of the raw request (headers and all).
 
 """
 
+import argparse
 import base64
 import difflib
+import json
+import os
 import random
 import re
 import socket
@@ -177,121 +180,171 @@ def try_extract_body(response):
     return decoded.decode('utf8')
 
 
-def send_request(method, path, proto, data=None, headers=CHROME_HEADERS):
+def send_request(verb, path, proto, data=None, headers=CHROME_HEADERS):
+    result = {
+        "verb": verb,
+        "path": path,
+        "proto": proto,
+        "body": data,
+        "headers": headers,
+    }
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         s.settimeout(2)
         #sys.stderr.write("Addr: {}\n".format(addr))
 
-        result = None
         try:
             s.connect(ECHO_HOST)
         except socket.gaierror:
-            result = (False, "gai_error")
+            result['result'] = 'connect_error'
+            result['error'] = "gai_error"
+            return result
         except PermissionError:
-            result = (False, "permission_error")
+            result['result'] = 'connect_error'
+            result['error'] = "permission_error"
+            return result
         except ConnectionRefusedError:  # noqa
-            result = (False, "connection_refused")
+            result['result'] = 'connect_error'
+            result['error'] = "connection_refused"
+            return result
         except socket.timeout:
-            result = (False, "timeout")
-
-        if result:
+            result['result'] = 'connect_error'
+            result['error'] = "timeout"
             return result
 
         sio = StringIO()
-        sio.write("{} {} {}\n".format(method, path, proto))
+        sio.write("{} {} {}\n".format(verb, path, proto))
 
         for header, body in headers:
             sio.write("{}: {}\n".format(header, body))
         sio.write("\n")
 
         request = sio.getvalue()
+        result['request'] = request
 
-        s.send(request.encode('utf8'))
+        try:
+            s.send(request.encode('utf8'))
 
-        if data:
-            s.send(data)
+            if data:
+                s.send(data)
 
-        data = read_all(s)
-        body = try_extract_body(data)
-        if not body:
-            return (False, "no_extracted_body")
+            data = read_all(s)
+            response = try_extract_body(data)
+            if not response:
+                return (False, "no_extracted_body")
 
-        response = [
-            x + "\n"
-            for x in body.replace("\r", "\\r").split("\n")]
-        request = [
-            x + "\n"
-            for x in request.replace("\r", "\\r").split("\n")]
+            diff_response = [
+                x + "\n"
+                for x in response.replace("\r", "\\r").split("\n")]
 
-        result = list(difflib.context_diff(request, response,
-                                           'request', 'response',
-                                           lineterm='\n'))
+            diff_request = [
+                x + "\n"
+                for x in request.replace("\r", "\\r").split("\n")]
+
+            diff = list(difflib.context_diff(diff_request, diff_response,
+                                             'request', 'response',
+                                             lineterm='\n'))
+        except Exception as e:
+            result['result'] = 'request_error'
+            result['error'] = str(type(e)) + ":" + str(e)
+
+        result['response'] = response
+
+        if diff:
+            result['result'] = 'diff'
+            result['diff'] = diff
+        else:
+            result['result'] = 'ok'
 
         s.close()
 
     except Exception as e:
         traceback.print_exc()
-        return (False, "unknown:" + str(e))
+        result['result'] = 'unexpected_error'
+        result['error'] = str(type(e)) + ":" + str(e)
 
-    return (True, result)
+    return result
 
 
 def send_and_print_differences(
-        verb, path, method, body=None, headers=CHROME_HEADERS):
-    r = 0
+        errors, verb, path, proto, body=None, headers=CHROME_HEADERS):
 
-    suc, resp = send_request(verb, path, method, body, headers=headers)
-    if not suc:
-        print(resp)
-        r = 100
-    else:
-        if resp:
-            print("Error in: ", verb[:50], path[:50], method[:50])
-            r = 1
+    result = send_request(verb, path, proto, body, headers=headers)
 
-        for diff in resp:
-            sys.stdout.write(diff)
+    # This should never happen
+    if 'result' not in result:
+        print("No result present in", result)
+        return -1
 
-    return r
+    # Print that there was an error if applicable.
+    if result['result'] in {"unexpected_error", "request_error",
+                            "connect_error"}:
+        print("Error in: ", verb[:50], path[:50], proto[:50])
+        r = 1
+
+    # Print the diff if there is one.
+    if result['result'] == 'diff':
+        r = 1
+        for line in result['diff']:
+            sys.stdout.write(line)
+
+    # Only save away the errors
+    if result['result'] != 'ok':
+        errors.append(result)
+        return 1
+
+    return 0
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('outdir', help="Output directory")
+    return parser.parse_args()
 
 
 def main():
+    args = get_args()
+
+    errors = []
+
     cnt = 0
     for i, (k, headers) in enumerate(HEADERS.items()):
         print("===== headers for", k)
         cnt += send_and_print_differences(
-            "GET", "/", "HTTP/1.0", headers=headers)
+            errors, "GET", "/", "HTTP/1.0", headers=headers)
         cnt += send_and_print_differences(
-            "GET", "/", "HTTP/1.1", headers=headers)
+            errors, "GET", "/", "HTTP/1.1", headers=headers)
 
     for verb in VERBS:
         print("===== verb", verb[:50])
-        cnt += send_and_print_differences(verb, "/", "HTTP/1.0")
-        cnt += send_and_print_differences(verb, "/", "HTTP/1.1")
+        cnt += send_and_print_differences(errors, verb, "/", "HTTP/1.0")
+        cnt += send_and_print_differences(errors, verb, "/", "HTTP/1.1")
 
     for path in PATHS:
         print("===== path", path[:50])
-        cnt += send_and_print_differences("GET", path, "HTTP/1.0")
-        cnt += send_and_print_differences("GET", path, "HTTP/1.1")
+        cnt += send_and_print_differences(errors, "GET", path, "HTTP/1.0")
+        cnt += send_and_print_differences(errors, "GET", path, "HTTP/1.1")
 
     for proto in PROTOS:
         print("===== proto", proto[:50])
-        cnt += send_and_print_differences("GET", "/", proto)
+        cnt += send_and_print_differences(errors, "GET", "/", proto)
 
     for i, header in enumerate(HEADER_SETS):
         print("===== header set", i)
         cnt += send_and_print_differences(
-            "GET", "/", "HTTP/1.0", headers=header)
+            errors, "GET", "/", "HTTP/1.0", headers=header)
         cnt += send_and_print_differences(
-            "GET", "/", "HTTP/1.1", headers=header)
+            errors, "GET", "/", "HTTP/1.1", headers=header)
 
     for headers in RAND_HOSTS:
         print("===== host", headers[0][1])
         cnt += send_and_print_differences(
-            "GET", "/", "HTTP/1.0", headers=header)
+            errors, "GET", "/", "HTTP/1.0", headers=header)
         cnt += send_and_print_differences(
-            "GET", "/", "HTTP/1.1", headers=header)
+            errors, "GET", "/", "HTTP/1.1", headers=header)
+
+    with open(os.path.join(args.outdir, "bad_requests.json"), 'w') as f:
+        json.dump(errors, f)
 
     return cnt
 

@@ -11,7 +11,6 @@ ROOT=$(pwd)
 popd >/dev/null
 ###
 
-rm -rf $ROOT/*_results/
 source $ROOT/venv/bin/activate
 pip3 -qq install -r $ROOT/requirements.txt
 

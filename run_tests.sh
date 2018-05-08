@@ -37,7 +37,7 @@ ntpdate -u time.apple.com > /dev/null &
 
 # preemptively update the permissions of the drop-off key
 chmod 500 $DEFAULT_DIR/includes/dropoff_key
- 
+
 # fetch the git commit info
 COMMIT=$(get_commit)
 

@@ -15,28 +15,56 @@ import difflib
 import random
 import re
 import socket
+import string
 import sys
 import traceback
 
 from io import StringIO, BytesIO
 
 
-HEADERS = [
-    ("Host", "pong.projekts.xyz"),
-    ("Connection", "keep-alive"),
-    ("Pragma", "no-cache"),
-    ("Cache-Control", "no-cache"),
-    ("Upgrade-Insecure-Requests", "1"),
-    ("User-Agent",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
-        " AppleWebKit/537.36 (KHTML, like Gecko)"
-        " Chrome/66.0.3359.139 Safari/537.36"),
-    ("Accept",
-        "text/html,application/xhtml+xml,application/xml;"
-        "q=0.9,image/webp,image/apng,*/*;q=0.8"),
-    ("Accept-Encoding", "gzip, deflate"),
-    ("Accept-Language", "en-US,en;q=0.9"),
-]
+HEADERS = {
+    "chrome": [
+        ("Host", "pong.projekts.xyz"),
+        ("Connection", "keep-alive"),
+        ("Pragma", "no-cache"),
+        ("Cache-Control", "no-cache"),
+        ("Upgrade-Insecure-Requests", "1"),
+        ("User-Agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
+            " AppleWebKit/537.36 (KHTML, like Gecko)"
+            " Chrome/66.0.3359.139 Safari/537.36"),
+        ("Accept",
+            "text/html,application/xhtml+xml,application/xml;"
+            "q=0.9,image/webp,image/apng,*/*;q=0.8"),
+        ("Accept-Encoding", "gzip, deflate"),
+        ("Accept-Language", "en-US,en;q=0.9"),
+    ],
+    "safari": [
+        ("Host", "pong.projekts.xyz"),
+        ("Upgrade-Insecure-Requests", "1"),
+        ("Accept",
+         "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+        ("User-Agent",
+         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
+         " AppleWebKit/605.1.15 (KHTML, like Gecko)"
+         " Version/11.1 Safari/605.1.15"),
+        ("Accept-Language", "en-us"),
+        ("Accept-Encoding", "gzip, deflate"),
+        ("Connection", "keep-alive"),
+    ],
+    "firefox": [
+        ("Host", "pong.projekts.xyz"),
+        ("User-Agent",
+         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:59.0)"
+         " Gecko/20100101 Firefox/59.0"),
+        ("Accept",
+         "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+        ("Accept-Language", "en-US,en;q=0.5"),
+        ("Accept-Encoding", "gzip, deflate"),
+        ("Connection", "keep-alive"),
+        ("Upgrade-Insecure-Requests", "1"),
+    ],
+}
 
 
 ECHO_HOST = ("pong.projekts.xyz", 80)
@@ -68,27 +96,58 @@ PROTOS = [
     "HTTP/" + "".join("1" for x in range(1000)),
 ]
 
+
+def rand_case(st):
+    return "".join(
+        x.upper() if random.randint(0, 1) else x.lower() for x in st)
+
+
+def rand_host():
+    return (
+        "".join(random.choice(string.ascii_letters + string.digits)
+                for _ in range(12)) +
+        "." +
+        "".join(random.choice(string.ascii_letters + string.digits)
+                for _ in range(random.randint(2, 5)))
+    )
+
+
+CHROME_HEADERS = HEADERS['chrome']
 HEADER_SETS = [
-    HEADERS[:1] +
+    CHROME_HEADERS[:1] +
     [("LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONG",
-      "header value")] + HEADERS[1:],
-    HEADERS[:1] +
+      "header value")] + CHROME_HEADERS[1:],
+    CHROME_HEADERS[:1] +
     [("LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONG",
-      "".join("VALUE" for _ in range(1000)))] + HEADERS[1:],
-    HEADERS[:5] + HEADERS[4:],
-    HEADERS + [("User-Agent",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
-                " AppleWebKit/537.36 (KHTML, like Gecko)"
-                " Chrome/66.0.3356.129 Safari/547.36")],
-    HEADERS[:5] + [("User-Agent",
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
-                    " AppleWebKit/537.36 (KHTML, like Gecko)"
-                    " Chrome/66.0.3356.129 Safari/547.36")] + HEADERS[5:],
-    random.sample(HEADERS, k=len(HEADERS)),
-    random.sample(HEADERS, k=len(HEADERS)),
-    random.sample(HEADERS, k=len(HEADERS)),
-    random.sample(HEADERS, k=len(HEADERS)),
-    HEADERS[:4] + [HEADERS[4]] * 100 + HEADERS[5:],
+      "".join("VALUE" for _ in range(1000)))] + CHROME_HEADERS[1:],
+    CHROME_HEADERS[:5] + CHROME_HEADERS[4:],
+    CHROME_HEADERS + [("User-Agent",
+                       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
+                       " AppleWebKit/537.36 (KHTML, like Gecko)"
+                       " Chrome/66.0.3356.129 Safari/547.36")],
+    (CHROME_HEADERS[:5] + [("User-Agent",
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4)"
+                            " AppleWebKit/537.36 (KHTML, like Gecko)"
+                            " Chrome/66.0.3356.129 Safari/547.36")] +
+     CHROME_HEADERS[5:]),
+    random.sample(CHROME_HEADERS, k=len(CHROME_HEADERS)),
+    random.sample(CHROME_HEADERS, k=len(CHROME_HEADERS)),
+    random.sample(CHROME_HEADERS, k=len(CHROME_HEADERS)),
+    random.sample(CHROME_HEADERS, k=len(CHROME_HEADERS)),
+    CHROME_HEADERS[:3] + [CHROME_HEADERS[3]] * 100 + CHROME_HEADERS[4:],
+    HEADERS['firefox'],
+    HEADERS['safari'],
+    [(rand_case(x), rand_case(y)) for (x, y) in CHROME_HEADERS],
+]
+
+# Just some random invalid hosts.
+RAND_HOSTS = [
+    [("Host", rand_host())] + CHROME_HEADERS[1:],
+    [("Host", rand_host())] + CHROME_HEADERS[1:],
+    [("Host", rand_host())] + CHROME_HEADERS[1:],
+    [("Host", rand_host())] + CHROME_HEADERS[1:],
+    [("Host", rand_host())] + CHROME_HEADERS[1:],
+    [("Host", rand_host())] + CHROME_HEADERS[1:],
 ]
 
 
@@ -118,7 +177,7 @@ def try_extract_body(response):
     return decoded.decode('utf8')
 
 
-def send_request(method, path, proto, data=None, headers=HEADERS):
+def send_request(method, path, proto, data=None, headers=CHROME_HEADERS):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         s.settimeout(2)
@@ -178,7 +237,8 @@ def send_request(method, path, proto, data=None, headers=HEADERS):
     return (True, result)
 
 
-def send_and_print_differences(verb, path, method, body=None, headers=HEADERS):
+def send_and_print_differences(
+        verb, path, method, body=None, headers=CHROME_HEADERS):
     r = 0
 
     suc, resp = send_request(verb, path, method, body, headers=headers)
@@ -198,6 +258,13 @@ def send_and_print_differences(verb, path, method, body=None, headers=HEADERS):
 
 def main():
     cnt = 0
+    for i, (k, headers) in enumerate(HEADERS.items()):
+        print("===== headers for", k)
+        cnt += send_and_print_differences(
+            "GET", "/", "HTTP/1.0", headers=headers)
+        cnt += send_and_print_differences(
+            "GET", "/", "HTTP/1.1", headers=headers)
+
     for verb in VERBS:
         print("===== verb", verb[:50])
         cnt += send_and_print_differences(verb, "/", "HTTP/1.0")
@@ -214,6 +281,13 @@ def main():
 
     for i, header in enumerate(HEADER_SETS):
         print("===== header set", i)
+        cnt += send_and_print_differences(
+            "GET", "/", "HTTP/1.0", headers=header)
+        cnt += send_and_print_differences(
+            "GET", "/", "HTTP/1.1", headers=header)
+
+    for headers in RAND_HOSTS:
+        print("===== host", headers[0][1])
         cnt += send_and_print_differences(
             "GET", "/", "HTTP/1.0", headers=header)
         cnt += send_and_print_differences(

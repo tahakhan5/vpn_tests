@@ -23,6 +23,10 @@ test_dns_manipulation() {
     ./checkdns.sh
 }
 
+test_bad_requests() {
+    python3 bad_requests.py
+}
+
 test_netalyzr() {
     python3 run_netalyzr.py $1
 }

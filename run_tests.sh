@@ -137,6 +137,7 @@ info_box "EXECUTING MANIPULATION TESTS"
 run_test test_dns_manipulation dns_manipulation $ROOT/manipulation_tests/dns/
 run_test test_dom_redirection dom_redirection $ROOT/manipulation_tests/redirection_dom/
 run_test test_ssl_collection ssl_collection $ROOT/manipulation_tests/ssl/
+run_test test_bad_requests bad_requests $ROOT/manipulation_tests/badrequests/
 
 ##############################################################################
 

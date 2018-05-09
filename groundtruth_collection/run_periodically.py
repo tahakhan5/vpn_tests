@@ -10,8 +10,8 @@ from datetime import time as dttime
 
 # Run the arguments every time we hit one of these times.
 # Keep this in sorted order...
-TRIGGER_TIMES = [dttime(hour=0), dttime(hour=6),
-                 dttime(hour=12), dttime(hour=18)]
+TRIGGER_TIMES = [dttime(hour=0, minute=13), dttime(hour=6, minute=10),
+                 dttime(hour=11, minute=51), dttime(hour=17, minute=49)]
 
 ONEDAY = timedelta(days=1)
 

@@ -31,7 +31,7 @@ run_test() {
     # Kill the test specific capture
     kill -s TERM $REDIR_COLL_PID
     wait $REDIR_COLL_PID
-    info "Test $test_tag complete"
+    info "Test $test_tag completed with status $rv"
     log_checkpoint ${test_tag}_done $rv
 
     [[ "$SKIP_IP_VERIFY" ]] || rerun_if_vpn_failed $pre_ip $@
@@ -117,8 +117,18 @@ rerun_if_vpn_failed() {
             info "Exiting, per your request."
             exit 1
         fi
-        info "Well those are your options, dude."
+        confirm "*Sigh*. You sure?" && break
     done
+}
+
+verify_ipv4_connectivity() {
+    local ok=0
+    if [[ ! $(get_external_ip) ]] ; then
+        error "You do not have valid IPv4 connectivity."
+        ok=1
+    fi
+
+    return $ok
 }
 
 verify_connectivity() {

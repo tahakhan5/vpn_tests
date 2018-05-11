@@ -23,12 +23,29 @@ source $ROOT/includes/test_funcs.sh
 
 DEFAULT_DIR=`pwd`
 
-if [[ "$1" != "no_check" ]]; then
+if [[ "$1" == "JUST_TRANSFER" ]]; then
+    shift 1
+    info "Trying to just transfer previous results..."
+    transfer_file $@ || error "Still didn't work. Please try again."
+    exit
+fi
+
+if [[ "$1" == "no_v6" ]]; then
+    info "Verifying (non-v6) internet connectivity..."
+    if ! verify_ipv4_connectivity; then
+        exit 1
+    fi
+    info "...you're good to go!"
+    shift 1
+
+elif [[ "$1" == "no_check" ]]; then
     info "Verifying internet connectivity..."
     if ! verify_connectivity; then
         exit 1
     fi
     info "...you're good to go!"
+    shift 1
+
 fi
 
 # update time from the network to avoid certificate errors
@@ -104,7 +121,10 @@ alert "CONNECT TO THE VPN SERVICE"
 while ! confirm "Are you connected to the VPN?"; do :; done
 
 EXTERNAL_VPN_IP=$(get_external_ip)
-if [[ "$EXTERNAL_VPN_IP" == "$PRE_VPN_IP" ]]; then
+if [[ -z "$EXTERNAL_VPN_IP" ]]; then
+    warning "Your connection doesn't seem to be working..."
+    confirm "Continue anyway?" || exit
+elif [[ "$EXTERNAL_VPN_IP" == "$PRE_VPN_IP" ]]; then
     warning "Your IP address hasn't changed after connecting to the VPN!"
     confirm "Continue anyway?" || exit
 fi
@@ -171,7 +191,12 @@ log_checkpoint "pre_transfer"
 
 info "Transferring results"
 
-transfer_file $TAG $RESULTS_DIR
+transfer_file $TAG $RESULTS_DIR || {
+    error "Couldn't transfer results. Connection down?"
+    info "Restore your connection, then run:"
+    info "    sudo ./run_tests.sh JUST_TRANSFER $TAG $RESULTS_DIR"
+    info "to recover..."
+}
 
 log_checkpoint "done"
 

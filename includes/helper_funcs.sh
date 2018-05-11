@@ -34,7 +34,8 @@ run_test() {
     info "Test $test_tag complete"
     log_checkpoint ${test_tag}_done $rv
 
-    rerun_if_vpn_failed $pre_ip $@
+    [[ "$SKIP_IP_VERIFY" ]] || rerun_if_vpn_failed $pre_ip $@
+    unset SKIP_IP_VERIFY
 }
 
 # Kills the given PID after the given number of seconds

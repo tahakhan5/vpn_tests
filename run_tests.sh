@@ -150,6 +150,8 @@ run_test test_infra_infer infrastructure_inference
 # These tests should run at the end
 info_box "EXECUTING END-GAME TESTS"
 run_test test_netalyzr netalyzr "./manipulation_tests/netalyzr"
+
+SKIP_IP_VERIFY=1  # Skip IP check for tunnel failure :-)
 run_test test_tun_fail tunnel_failure "./leakage_tests/tunnel_failure/"
 
 ################################################################################

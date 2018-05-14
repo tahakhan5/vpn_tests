@@ -66,10 +66,10 @@ def main():
 
     vpn_name = args.vpn_name.replace(" ", "_")
 
-    crt_file = os.path.abspath(args.crt_file)
-    auth_file = os.path.abspath(args.auth_file)
+    crt_file = os.path.abspath(args.crt_file) if args.crt_file else None
+    auth_file = os.path.abspath(args.auth_file) if args.auth_file else None
 
-    config_path = os.path.dirname(args.crt_file)
+    config_path = os.path.dirname(args.crt_file) if args.crt_file else None
 
     script_path = os.path.abspath(args.script)
     postscript_path = os.path.abspath(

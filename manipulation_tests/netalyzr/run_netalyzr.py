@@ -11,7 +11,12 @@ def run_netalyzr():
          '-XX:+IgnoreUnrecognizedVMOptions',
          '--add-modules', 'java.xml.bind'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    std_output = result_out.communicate()[0].decode('ASCII', errors='ignore')
+    out, err = result_out.communicate()
+    with open(os.path.join(sys.argv[1], "netalyzr_stdout.out"), 'wb') as f:
+        f.write(out)
+    with open(os.path.join(sys.argv[1], "netalyzr_stderr.out"), 'wb') as f:
+        f.write(err)
+    std_output = out.decode('ASCII', errors='ignore')
     results_url = std_output.split("results available at:")[-1].strip("\n")
     return results_url
 

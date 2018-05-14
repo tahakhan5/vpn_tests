@@ -31,7 +31,7 @@ logger = logging.getLogger("tun_fail")
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--hosts', nargs=1,
+    parser.add_argument('-i', '--hosts',
                         default=os.path.join(os.getcwd(), DEFAULT_INPUT_FILE),
                         type=argparse.FileType('r'),
                         #type=ForgivingFileType('r'),

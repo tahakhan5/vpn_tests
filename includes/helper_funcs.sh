@@ -81,7 +81,7 @@ error_exit() {
 
 # Helper cleaning function to make names path-safe.
 clean_str() {
-    tr '[:upper:]' '[:lower:]'| sed -e "s/ /_/g" -e "s/[^a-z_]//g"
+    tr '[:upper:]' '[:lower:]'| sed -e "s/ /_/g" -e "s/[^a-z0-9_]//g"
 }
 
 get_external_ip() {

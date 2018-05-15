@@ -14,7 +14,7 @@ run_test() {
     # Run the test specific capture
     DUMP_FILE=${test_tag}.pcap
     tcpdump -U -i en0 -s 65535 -w $TRACES_DIR/$DUMP_FILE 2>/dev/null &
-    export REDIR_COLL_PID=$!
+    local TCPDUMP_PID=$!
     sleep 1
 
     log_checkpoint ${test_tag}_start
@@ -29,8 +29,9 @@ run_test() {
     [[ "$ch_dir" ]] && popd > /dev/null
 
     # Kill the test specific capture
-    kill -s TERM $REDIR_COLL_PID
-    wait $REDIR_COLL_PID
+    kill -s TERM $TCPDUMP_PID
+    wait $TCPDUMP_PID
+
     info "Test $test_tag completed with status $rv"
     log_checkpoint ${test_tag}_done $rv
 

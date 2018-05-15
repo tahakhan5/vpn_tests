@@ -273,9 +273,13 @@ def traceroute_anycast(f, args):
 def google_geo(f, args):
     creds = json.load(args.credentials_file)
 
+    logger.info("Creating googlemaps client...")
     client = googlemaps.Client(creds["google_api_key"])
+
+    logger.info("Geolocating IP...")
     loc = client.geolocate()
     rg = None
+    logger.info("Reverse geocoding location...")
     try:
         rg = client.reverse_geocode(loc["location"])
     except KeyError:
@@ -283,6 +287,7 @@ def google_geo(f, args):
 
     output = {"geolocation": loc, "geocode": rg}
 
+    logger.info("Dumping results...")
     json.dump(output, f)
 
 
@@ -301,6 +306,7 @@ def run_tests(args):
             test_func(args)
         except Exception as e:
             logger.exception("Unanticipated exception in %s", test_name)
+        logger.info("Test {} completed.".format(init_name))
 
     logger.info("All done!")
 

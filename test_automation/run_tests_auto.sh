@@ -57,7 +57,7 @@ TAG=${PATH_SAFE_VPN_NAME}_${PATH_SAFE_VPN_LOC_TAG}
 # fetch the git commit info
 COMMIT=$(cd $ROOT; git rev-parse --verify HEAD)
 
-log_checkpoint "auto_start"
+log_checkpoint "auto_start" "AUTO"
 
 ################################################################################
 

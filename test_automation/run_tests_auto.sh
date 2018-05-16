@@ -43,6 +43,11 @@ source $ROOT/includes/helper_funcs.sh
 # Test functions
 source $ROOT/includes/test_funcs.sh
 
+# Sometimes, it takes some time for openvpn to settle. We don't have a lot of
+# time, but give it a chance.
+info "Waiting until connection is active again..."
+wait_until_connected 5 || info "Wasn't active in time. Proceeding anyway."
+
 DEFAULT_DIR=`pwd`
 
 # collect information about the vpn service

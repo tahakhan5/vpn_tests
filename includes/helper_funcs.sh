@@ -65,6 +65,7 @@ kill_after() {
 
 # Blocks until we can access google
 wait_until_connected() {
+    local max=${1:-0}
     ping -o -t2 google.com >/dev/null 2>&1
     rv=$?
     while [[ "$rv" -ne 0 ]]; do
@@ -72,7 +73,12 @@ wait_until_connected() {
         sleep 1
         ping -o -t2 google.com >/dev/null 2>&1
         rv=$?
+
+        # Break out
+        max=$((max - 1))
+        [[ $max -eq 0 ]] && return 1
     done
+    return 0
 }
 
 error_exit() {

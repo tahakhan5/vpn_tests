@@ -107,6 +107,7 @@ rerun_if_vpn_failed() {
         error "The VPN has disconnected. Please reconnect to the VPN."
     else
         error "Your IP changed during this test. Please verify VPN connection."
+        info "IP was $PRE_VPN_IP and is now $ip."
     fi
 
     while true; do

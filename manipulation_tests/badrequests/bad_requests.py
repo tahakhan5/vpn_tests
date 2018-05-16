@@ -188,6 +188,7 @@ def send_request(verb, path, proto, data=None, headers=CHROME_HEADERS):
         "body": data,
         "headers": headers,
     }
+    response = None
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         s.settimeout(2)

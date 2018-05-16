@@ -6,7 +6,7 @@ run_test() {
     test_tag=$2     # Friendly name/tag for this *test*
     ch_dir=$3       # Optional directory to change in to before test
 
-    local pre_ip=$(get_external_ip)
+    local pre_ip=$(get_external_ip 2)
 
     test_dir=$RESULTS_DIR/$test_tag
     mkdir -p $test_dir
@@ -85,7 +85,15 @@ clean_str() {
 }
 
 get_external_ip() {
-    curl -sS https://ipv4.projekts.xyz
+    local tries=${1:-1}
+    local ip=$(curl -sS https://ipv4.projekts.xyz)
+    while [[ $tries -gt 1 && -z "$ip" ]]; do
+        info "Couldn't get IP..."
+        sleep 1
+        ip=$(curl -sS https://ipv4.projekts.xyz)
+        tries=$((tries - 1))
+    done
+    echo $ip
 }
 
 get_external_ip6() {

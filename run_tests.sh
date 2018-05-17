@@ -182,12 +182,12 @@ log_checkpoint "pre_disconnect" &  # Background to stop hanging as net recovers
 
 alert "DISCONNECT FROM THE VPN"
 pause "Disconnected?"
-while [[ "$EXTERNAL_VPN_IP" == $(get_external_ip) ]]; do
+while [[ "$EXTERNAL_VPN_IP" == $(get_external_ip 3) ]]; do
     warning "Your IP is still the same as on the VPN."
     confirm "Continue anyway?" && break
 done
 
-log_checkpoint "pre_transfer"
+log_checkpoint "pre_transfer" &
 
 info "Transferring results"
 

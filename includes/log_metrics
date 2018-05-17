@@ -14,7 +14,7 @@ def post_checkpoint(x):
     args = vars(x)
     del args['func']
 
-    r = requests.post(ENDPOINT, json=args)
+    r = requests.post(ENDPOINT, json=args, timeout=3.0)
 
     #from pprint import pprint
     #pprint(r.text, stream=sys.stderr)

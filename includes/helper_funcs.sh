@@ -1,5 +1,7 @@
 #!/bin/bash
 
+LOG_METRICS_SCRIPT=$ROOT/includes/log_metrics
+
 # Runs given test function while recording pcaps and giving updates to the user
 run_test() {
     test_func=$1    # Function to call to do the actual test
@@ -195,7 +197,7 @@ log_checkpoint() {
         extra="--extra $2"
     fi
 
-    local t_id=$($ROOT/includes/log_metrics checkpoint $TAG $1 $RUN_ID $extra)
+    local t_id=$($LOG_METRICS_SCRIPT checkpoint $TAG $1 $RUN_ID $extra 2> /dev/null)
     if [[ ! "$RUN_ID" ]]; then
         RUN_ID=$t_id
     fi

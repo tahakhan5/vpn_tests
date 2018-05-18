@@ -25,6 +25,9 @@ import traceback
 from io import StringIO, BytesIO
 
 
+SLEEP_TIME = .1
+
+
 HEADERS = {
     "chrome": [
         ("Host", "pong.projekts.xyz"),
@@ -313,36 +316,47 @@ def main():
         print("===== headers for", k)
         cnt += send_and_print_differences(
             errors, "GET", "/", "HTTP/1.0", headers=headers)
+        time.sleep(SLEEP_TIME)
         cnt += send_and_print_differences(
             errors, "GET", "/", "HTTP/1.1", headers=headers)
+        time.sleep(SLEEP_TIME)
 
     for verb in VERBS:
         print("===== verb", verb[:50])
         cnt += send_and_print_differences(errors, verb, "/", "HTTP/1.0")
+        time.sleep(SLEEP_TIME)
         cnt += send_and_print_differences(errors, verb, "/", "HTTP/1.1")
+        time.sleep(SLEEP_TIME)
 
     for path in PATHS:
         print("===== path", path[:50])
         cnt += send_and_print_differences(errors, "GET", path, "HTTP/1.0")
+        time.sleep(SLEEP_TIME)
         cnt += send_and_print_differences(errors, "GET", path, "HTTP/1.1")
+        time.sleep(SLEEP_TIME)
 
     for proto in PROTOS:
         print("===== proto", proto[:50])
         cnt += send_and_print_differences(errors, "GET", "/", proto)
+        time.sleep(SLEEP_TIME)
 
     for i, header in enumerate(HEADER_SETS):
         print("===== header set", i)
         cnt += send_and_print_differences(
             errors, "GET", "/", "HTTP/1.0", headers=header)
+        time.sleep(SLEEP_TIME)
         cnt += send_and_print_differences(
             errors, "GET", "/", "HTTP/1.1", headers=header)
+        time.sleep(SLEEP_TIME)
 
     for headers in RAND_HOSTS:
         print("===== host", headers[0][1])
         cnt += send_and_print_differences(
             errors, "GET", "/", "HTTP/1.0", headers=header)
+        time.sleep(SLEEP_TIME)
         cnt += send_and_print_differences(
             errors, "GET", "/", "HTTP/1.1", headers=header)
+        time.sleep(SLEEP_TIME)
 
     with open(os.path.join(args.outdir, "bad_requests.json"), 'w') as f:
         json.dump(errors, f)

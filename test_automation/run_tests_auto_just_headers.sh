@@ -46,7 +46,11 @@ source $ROOT/includes/test_funcs.sh
 # Sometimes, it takes some time for openvpn to settle. We don't have a lot of
 # time, but give it a chance.
 info "Waiting until connection is active again..."
-wait_until_connected 10 || info "Wasn't active in time. Proceeding anyway."
+wait_until_connected 10
+if [[ $? -ne 0 ]]; then
+    info "Wasn't active in time. Skipping."
+    exit 1
+fi
 
 DEFAULT_DIR=`pwd`
 

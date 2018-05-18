@@ -46,7 +46,7 @@ source $ROOT/includes/test_funcs.sh
 # Sometimes, it takes some time for openvpn to settle. We don't have a lot of
 # time, but give it a chance.
 info "Waiting until connection is active again..."
-wait_until_connected 5 || info "Wasn't active in time. Proceeding anyway."
+wait_until_connected 10 || info "Wasn't active in time. Proceeding anyway."
 
 DEFAULT_DIR=`pwd`
 
@@ -115,30 +115,7 @@ log_checkpoint "auto_testing"
 info "Disabling IPv6 for the duration of the test."
 networksetup -setv6off Ethernet
 
-info_box "Executing leakage tests"
-run_test test_webrtc_leak rtc_leak $ROOT/leakage_tests/webrtc/
-
-info_box "Executing manipulation tests"
-run_test test_dns_manipulation dns_manipulation $ROOT/manipulation_tests/dns/
-run_test test_dom_redirection dom_redirection $ROOT/manipulation_tests/redirection_dom/
-run_test test_ssl_collection ssl_collection $ROOT/manipulation_tests/ssl/
 run_test test_bad_requests bad_requests $ROOT/manipulation_tests/badrequests/
-
-info_box "Executing infrastructure tests"
-run_test test_recursive_dns_origin recursive_dns_origin
-run_test test_backconnect_nov6 backconnect
-run_test test_infra_infer infrastructure_inference
-
-## Keep these tests last
-info_box "Executing final tests"
-run_test test_netalyzr netalyzr $ROOT/manipulation_tests/netalyzr/
-
-# These stay disabled
-# OpenVPN WILL leak DNS and IPv6 unless you work around it.
-#run_test test_dns_leakage dns_leak
-#run_test test_ipv6_leakage ipv6_leakage  # OpenVPN WILL leak
-# Tunnel failure isn't interesting when you control the tunnel.
-#run_test test_tunnel_failure tunnel_failure
 
 ################################################################################
 

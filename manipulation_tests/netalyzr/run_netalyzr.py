@@ -11,7 +11,13 @@ def run_netalyzr():
          '-XX:+IgnoreUnrecognizedVMOptions',
          '--add-modules', 'java.xml.bind'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = result_out.communicate()
+    try:
+        out, err = result_out.communicate(timeout=1200)  # Kill it after 20 min
+    except subprocess.TimeoutExpired:
+        result_out.kill()
+        outs, errs = result_out.communicate()
+        sys.stderr.write("Had to kill Netalyzr...\n")
+
     with open(os.path.join(sys.argv[1], "netalyzr_stdout.out"), 'wb') as f:
         f.write(out)
     with open(os.path.join(sys.argv[1], "netalyzr_stderr.out"), 'wb') as f:

@@ -37,7 +37,7 @@ run_test() {
     info "Test $test_tag completed with status $rv"
     log_checkpoint ${test_tag}_done $rv
 
-    [[ "$SKIP_IP_VERIFY" ]] || rerun_if_vpn_failed $pre_ip $@
+    [[ "$SKIP_IP_VERIFY" ]] || rerun_if_vpn_failed $pre_ip $test_dir $@
     unset SKIP_IP_VERIFY
 }
 
@@ -110,12 +110,24 @@ get_external_ip6() {
 
 rerun_if_vpn_failed() {
     local pre_ip=$1
-    shift 1
+    local test_dir=$2
+    shift 2
 
     local ip=$(get_external_ip)
 
     # If we didn't change IPs, we're good to go.
     [[ "$ip" == "$pre_ip" ]] && return
+
+    if [[ "$MODE" == "AUTO" ]]; then
+        error "IP changed during the test from $pre_ip to $ip"
+        info "Deleting bad results."
+        rm -r $test_dir
+
+        if "$ip" == "$PRE_VPN_IP" ]]; then
+            log_checkpoint auto_ip_error_exit "$pre_ip,$ip"
+            exit 1
+        fi
+    fi
 
     log_checkpoint ip_error "$pre_ip,$ip"
 
@@ -132,6 +144,9 @@ rerun_if_vpn_failed() {
             run_test $@
             return
         elif confirm "Would you like to exit the testing suite?"; then
+            if confirm "Delete bad test results?"; then
+                rm -r $test_dir
+            fi
             info "Exiting, per your request."
             exit 1
         fi
@@ -274,23 +289,37 @@ color_box() {
     tput sgr0
 }
 
+log() {
+    [[ "$RESULTS_DIR" ]] || return
+
+    log_file=$RESULTS_DIR/test_log
+    local level=$1
+    shift 1
+    echo $(date '+%F %T'):$level:$@ >> $log_file
+}
+
 error() {
+    log ERROR $*
     color_box $COLOR_RED "#" $* >&2
 }
 
 warning() {
+    log WARNING $*
     color_box $COLOR_YELLOW "#" $* >&2
 }
 
 alert() {
+    log ALERT $*
     color_box $COLOR_MAGENTA "#" $*
 }
 
 info_box() {
+    log INFO $*
     color_box $COLOR_CYAN "#" $*
 }
 
 info() {
+    log INFO $*
     tput bold
     colorize $COLOR_CYAN "# $*\n"
 }

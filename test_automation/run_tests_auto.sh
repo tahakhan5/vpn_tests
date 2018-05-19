@@ -1,5 +1,7 @@
 #!/bin/bash
 
+MODE=auto
+
 usage() {
     if [[ "$@" ]]; then
         echo -e "ERROR: $@\n" >&2

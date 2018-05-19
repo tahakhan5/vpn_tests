@@ -78,7 +78,12 @@ def main():
     up_down_script = os.path.abspath(
         os.path.join(os.path.dirname(__file__), UP_DOWN_SCRIPT))
 
+    n_errors = 0
+    n_endpoints = 0
+
     for config_file in sorted(glob.glob(os.path.join(args.indir, "*.ovpn"))):
+
+        n_endpoints += 1
 
         while os.path.exists(HOLD_FILE):
             time.sleep(1)
@@ -106,11 +111,14 @@ def main():
         if result:
             logger.error("Result failed on endpoint %s with status %d",
                          config_name, result)
+            logger.warning("Will not call postscript on %s %s",
+                           vpn_name, config_name)
+            n_errors += 1
 
         vpn.stop()
         logger.debug("VPN stopped!")
 
-        if postscript_path:
+        if postscript_path and not result:
             logger.info("Calling post-script.")
             result = subprocess.call([postscript_path, vpn_name, config_name])
             logger.info("Returned from post-script.")
@@ -118,6 +126,10 @@ def main():
             if result:
                 logger.error("Result failed on postscript call %s w/%d",
                              config_name, result)
+
+    if n_errors:
+        logger.error("Encountered errors in %d of %d endpoints.",
+                     n_errors, n_endpoints)
 
 
 if __name__ == "__main__":

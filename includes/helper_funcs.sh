@@ -98,7 +98,7 @@ get_external_ip() {
     while [[ $tries -gt 1 && -z "$ip" ]]; do
         info "Couldn't get IP..."
         sleep 1
-        ip=$(curl -sS https://ipv4.projekts.xyz)
+        ip=$(curl -m 5 -sS https://ipv4.projekts.xyz)
         tries=$((tries - 1))
     done
     echo $ip

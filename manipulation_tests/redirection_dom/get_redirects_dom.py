@@ -148,7 +148,7 @@ def query_host(results_dir, host, scheme="http", timeout=None):
         with open(os.path.join(results_dir, "dom.html"), 'w') as dom_file:
             dom_file.write(html)
     except:
-        pass
+        logger.exception("Couldn't write to html text")
 
     #save final URL
     with open(os.path.join(results_dir, "final_urls.txt"), 'w') as final_url:
@@ -157,8 +157,11 @@ def query_host(results_dir, host, scheme="http", timeout=None):
 
     # save body text
     text = driver.find_elements(By.XPATH, '//body')[0].text
-    with open(os.path.join(results_dir, "text.txt"), 'w') as text_file:
-        text_file.write(text)
+    try:
+        with open(os.path.join(results_dir, "text.txt"), 'w') as text_file:
+            text_file.write(text)
+    except Exception:
+        logger.exception("Couldn't write to body text")
 
     mid5 = time.time()
     diff = mid5 - mid4

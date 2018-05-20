@@ -144,8 +144,11 @@ def query_host(results_dir, host, scheme="http", timeout=None):
 
     # save DOM
     html = driver.execute_script("return document.documentElement.outerHTML")
-    with open(os.path.join(results_dir, "dom.html"), 'w') as dom_file:
-        dom_file.write(html.encode('utf-8'))
+    try:
+        with open(os.path.join(results_dir, "dom.html"), 'w') as dom_file:
+            dom_file.write(html)
+    except:
+        pass
 
     #save final URL
     with open(os.path.join(results_dir, "final_urls.txt"), 'w') as final_url:
